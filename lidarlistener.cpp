@@ -8,6 +8,8 @@
 #include <std_msgs/Float32.h>
 #include <std_msgs/Int32.h>
 #include <std_msgs/String.h>
+#include <geometry_msgs/Twist.h>
+#include <geometry_msgs/Pose.h>
 #include <math.h>
 #include <numeric>
 #include <iterator>
@@ -20,7 +22,7 @@
 #include <random>
 
 
-//namespace? what needs to be done here
+//namespace, what needs to be done here?
 /*
 namespace nearness{
 NearnessController::NearnessController(const ros::NodeHandle &node_handle,
@@ -33,18 +35,18 @@ NearnessController::NearnessController(const ros::NodeHandle &node_handle,
 
 //define
 #define RAD2DEG(x) ((x)*180./M_PI)
-
 bool enable_control;
+std::vector<float> scan_ranges;
 
-//callback for enable control
+//callback for enable control (error std_msgs needs proper init?)
 void enableControlCallback(const std_msgs::bool msg){
     enable_control = msg.data;
+// how do we enable? what next?
 }
 
 
-std::vector<float> scan_ranges;
 
-//callback for the lidar scan
+//callback for the lidar scan, will clear and refresh scan vector called scan_ranges
 void scanCallback(const sensor_msgs::LaserScan::ConstPtr& scan)
 {
     int count = scan->scan_time / scan->time_increment;
@@ -58,24 +60,27 @@ void scanCallback(const sensor_msgs::LaserScan::ConstPtr& scan)
         ROS_INFO(": [%f, %f]", degree, scan->ranges[i]);
     }
 }
-// Main 
+// Main begin
 int main(int argc, char **argv)
 {
     ros::init(argc, argv, "lidarlistener");
     ros::NodeHandle n;
 
+//ros subscribers to laserscan 
     ros::Subscriber sub_laserscan = n.subscribe<sensor_msgs::LaserScan>("/scan", 1000, scanCallback);
+
+//ros subscriber to enable control (error because enablecontrolcallback is failing earlier or std_msgs)
     ros::Subscriber sub_enable_control = n.subscribe<std_msgs::bool>("/enable_control", 1,enableControlCallback);
- 
+//Initially have control turned off until we "$rosrun enable_control" right? 
     enable_control = false;
      
-//Add while loop to start converting/calculating (commented out for now while we troubleshoot above)
+//Add while loop to start converting/calculating (commented out for now while we troubleshoot above) (while ros.ok does what exactly?)
 
- /*   while(ros.ok()){
+ /*  
+
+ while(ros.ok()){
  
        // Process the laser data       
-       // Determine motion state
-       // Publish control commands to arduino through rosserial topics
 
 void NearnessController::horizLaserscanCb(const sensor_msgs::LaserScanPtr h_laserscan_msg){
 
@@ -90,11 +95,15 @@ void NearnessController::horizLaserscanCb(const sensor_msgs::LaserScanPtr h_lase
 
     computeWFYawRateCommand();
 
+       // Determine motion state
+
+       // Publish control commands to arduino through rosserial
+
        if(enable_control){
-           // Publish the real control commands
+           // Publish the real control commands with rosserial
 
        } else {
-           // Publish zeros
+           // Publish zeros with rosserial
        }
            
  
@@ -102,6 +111,8 @@ void NearnessController::horizLaserscanCb(const sensor_msgs::LaserScanPtr h_lase
     }
 }
 */
+
+
     return 0;
 
 }
