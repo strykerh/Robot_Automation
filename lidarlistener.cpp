@@ -37,62 +37,33 @@ NearnessController::NearnessController(const ros::NodeHandle &node_handle,
 //init nearness controller *************************************
 
 
-void NearnessController::init() {
+void init() {
 
-// Set up dynamic reconfigure
-//    reconfigure_server_.reset(new ReconfigureServer(config_mutex_, pnh_));
-//    ReconfigureServer::CallbackType f = boost::bind(&NearnessController::configCb, this, _1, _2);
-//    reconfigure_server_->setCallback(f);
-
-// Set up subscribers and callbacks ( we covered the first two below i think?)
-    sub_horiz_laserscan_ = nh_.subscribe("/scan", 1, &NearnessController::scanCallback, this);
-    subt_enable_control_ = nh_.subscribe("/enable_control", 1, &NearnessController::enableControlCallback, this);
-//    sub_tower_safety_ = nh_.subscribe("tower_safety", 1, &NearnessController::towerSafetyCb, this);
-//    sub_beacon_stop_ = nh_.subscribe("beacon_stop", 1, &NearnessController::beaconStopCb, this);
-
-// Set up publishers
- //   pub_h_scan_reformat_ = nh_.advertise<std_msgs::Float32MultiArray>("horiz_depth_reformat", 10);
- //   pub_h_scan_nearness_ = nh_.advertise<std_msgs::Float32MultiArray>("horiz_nearness", 10);
- //   pub_h_sf_nearness_ = nh_.advertise<std_msgs::Float32MultiArray>("horiz_sf_nearness", 10);
- //   pub_h_recon_wf_nearness_ = nh_.advertise<std_msgs::Float32MultiArray>("horiz_recon_wf_nearness", 10);
- //   pub_h_fourier_coefficients_ = nh_.advertise<nearness_control_msgs::FourierCoefsMsg>("horiz_fourier_coefficients", 10);
- //   pub_control_commands_stamped_ = nh_.advertise<geometry_msgs::TwistStamped>("control_commands_stamped", 10);
- //   pub_control_commands_ = nh_.advertise<geometry_msgs::Twist>("control_commands", 10);
-
-    // Initialize global variables
-
-    // Wide Field Forward Speed and Yaw Rate Control Gains
-
-    // Create safety boundary(if we use it to stop?)
-
-    // Initialize tower safety counters
+//what do we need to init up here? seems like it was done in main according to mike?
 
 } // End of init***********************************************
 
 
-
-
-//define ( can/should we move into init?)
+//define global variables**********************
 #define RAD2DEG(x) ((x)*180./M_PI)
 //add controller gains
 bool enable_control;
 std::vector<float> scan_ranges;
+//**************************************************************
 
+//Callbacks*****************************************************
 //callback for enable control (error std_msgs needs proper init?, do we need to do an init to set up like in the beginning?)
-void NearnessController::enableControlCallback(const std_msgs::bool msg){
+void enableControlCallback(const std_msgs::bool msg){
     enable_control = msg.data;
-// how do we enable in the terminal? what next?
+// to enable in terminal, $ rostopic pub enable_control std_msgs/bool "true"
 }
 
-
-
 //callback for the lidar scan, will clear and refresh scan vector called scan_ranges
-void NearnessController::scanCallback(const sensor_msgs::LaserScan::ConstPtr& scan)
+void scanCallback(const sensor_msgs::LaserScan::ConstPtr& scan)
 {
     int count = scan->scan_time / scan->time_increment;
     ROS_INFO("I heard a laser scan %s[%d]:", scan->header.frame_id.c_str(), count);
     ROS_INFO("angle_range, %f, %f", RAD2DEG(scan->angle_min), RAD2DEG(scan->angle_max));
-
     scan_ranges.clear();
     for(int i = 0; i < count; i++) {
         scan_ranges.push_back(scan->ranges[i]);
@@ -102,33 +73,43 @@ void NearnessController::scanCallback(const sensor_msgs::LaserScan::ConstPtr& sc
 }
 
 
+//***********************************************************
+
 // Main begin************************************************
 int main(int argc, char **argv)
 {
     ros::init(argc, argv, "lidarlistener");
     ros::NodeHandle n;
-
+//Subscribers Setup**********************************************
 //ros subscribers to laserscan 
     ros::Subscriber sub_laserscan = n.subscribe<sensor_msgs::LaserScan>("/scan", 1000, scanCallback);
-
 //ros subscriber to enable control (error because enablecontrolcallback is failing earlier or std_msgs)
     ros::Subscriber sub_enable_control = n.subscribe<std_msgs::bool>("/enable_control", 1,enableControlCallback);
 //Initially have control turned off until we "$rosrun enable_control" right? 
     enable_control = false;
-     
-// While loop to start converting/calculating (commented out for now while we troubleshoot above) (while ros::ok does what exactly?)******************************************************
+//***************************************************************
 
-  
+//publishers set up**********************************************
+/* 
+ ros::Publisher pub_h_scan_nearness_ = nh_.advertise<std_msgs::Float32MultiArray>("horiz_nearness", 10);
+  ros::Publisher pub_h_recon_wf_nearness_ = nh_.advertise<std_msgs::Float32MultiArray>("horiz_recon_wf_nearness", 10);
+ ros::Publisher pub_h_fourier_coefficients_ = nh_.advertise<nearness_control_msgs::FourierCoefsMsg>("horiz_fourier_coefficients", 10);
+  ros::Publisher pub_control_commands_stamped_ = nh_.advertise<geometry_msgs::TwistStamped>("control_commands_stamped", 10);
+ ros::Publisher pub_control_commands_ = nh_.advertise<geometry_msgs::Twist>("control_commands", 10);
+*/
+//***************************************************************
+
+     
+// While loop to start converting/calculating (commented out for now while we troubleshoot above)
 
  while(ros::ok()){
  /*
        // Process the laser data       
 
-void NearnessController::horizLaserscanCb(const sensor_msgs::LaserScanPtr h_laserscan_msg){
 
     // Convert incoming scan to cv matrix and reformat
-    convertHLaserscan2CVMat(h_laserscan_msg);
-
+    convertHLaserscan2CVMat(scan_ranges);
+//how to access the scan is that ^?
     // Compute the Fourier harmonics of the signal
     computeHorizFourierCoeffs();
 
@@ -137,18 +118,19 @@ void NearnessController::horizLaserscanCb(const sensor_msgs::LaserScanPtr h_lase
 
     computeWFYawRateCommand();
 
-       // Determine motion state
+       // Determine motion state ( safety box stuff_
 
 // If statement for enable control ******************************
        if(enable_control){
-           // Publish the real control commands with rosserial
+           // Publish the real control commands with rosserial to arduino
 
 // Else for zeros to control command ****************************
        } else {
            // Publish zeros with rosserial
        }
  */          
- 
+
+ //check callbacks once
         ros::spinOnce();
     }
 
