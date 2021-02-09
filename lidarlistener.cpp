@@ -36,28 +36,28 @@ NearnessController::NearnessController(const ros::NodeHandle &node_handle,
 
 //init nearness controller *************************************
 
-/*
+
 void NearnessController::init() {
 
 // Set up dynamic reconfigure
-    reconfigure_server_.reset(new ReconfigureServer(config_mutex_, pnh_));
-    ReconfigureServer::CallbackType f = boost::bind(&NearnessController::configCb, this, _1, _2);
-    reconfigure_server_->setCallback(f);
+//    reconfigure_server_.reset(new ReconfigureServer(config_mutex_, pnh_));
+//    ReconfigureServer::CallbackType f = boost::bind(&NearnessController::configCb, this, _1, _2);
+//    reconfigure_server_->setCallback(f);
 
 // Set up subscribers and callbacks ( we covered the first two below i think?)
-    sub_horiz_laserscan_ = nh_.subscribe("horiz_scan", 1, &NearnessController::horizLaserscanCb, this);
-    subt_enable_control_ = nh_.subscribe("enable_control", 1, &NearnessController::enableControlCb, this);
-    sub_tower_safety_ = nh_.subscribe("tower_safety", 1, &NearnessController::towerSafetyCb, this);
-    sub_beacon_stop_ = nh_.subscribe("beacon_stop", 1, &NearnessController::beaconStopCb, this);
+    sub_horiz_laserscan_ = nh_.subscribe("/scan", 1, &NearnessController::scanCallback, this);
+    subt_enable_control_ = nh_.subscribe("/enable_control", 1, &NearnessController::enableControlCallback, this);
+//    sub_tower_safety_ = nh_.subscribe("tower_safety", 1, &NearnessController::towerSafetyCb, this);
+//    sub_beacon_stop_ = nh_.subscribe("beacon_stop", 1, &NearnessController::beaconStopCb, this);
 
 // Set up publishers
-    pub_h_scan_reformat_ = nh_.advertise<std_msgs::Float32MultiArray>("horiz_depth_reformat", 10);
-    pub_h_scan_nearness_ = nh_.advertise<std_msgs::Float32MultiArray>("horiz_nearness", 10);
-    pub_h_sf_nearness_ = nh_.advertise<std_msgs::Float32MultiArray>("horiz_sf_nearness", 10);
-    pub_h_recon_wf_nearness_ = nh_.advertise<std_msgs::Float32MultiArray>("horiz_recon_wf_nearness", 10);
-    pub_h_fourier_coefficients_ = nh_.advertise<nearness_control_msgs::FourierCoefsMsg>("horiz_fourier_coefficients", 10);
-    pub_control_commands_stamped_ = nh_.advertise<geometry_msgs::TwistStamped>("control_commands_stamped", 10);
-    pub_control_commands_ = nh_.advertise<geometry_msgs::Twist>("control_commands", 10);
+ //   pub_h_scan_reformat_ = nh_.advertise<std_msgs::Float32MultiArray>("horiz_depth_reformat", 10);
+ //   pub_h_scan_nearness_ = nh_.advertise<std_msgs::Float32MultiArray>("horiz_nearness", 10);
+ //   pub_h_sf_nearness_ = nh_.advertise<std_msgs::Float32MultiArray>("horiz_sf_nearness", 10);
+ //   pub_h_recon_wf_nearness_ = nh_.advertise<std_msgs::Float32MultiArray>("horiz_recon_wf_nearness", 10);
+ //   pub_h_fourier_coefficients_ = nh_.advertise<nearness_control_msgs::FourierCoefsMsg>("horiz_fourier_coefficients", 10);
+ //   pub_control_commands_stamped_ = nh_.advertise<geometry_msgs::TwistStamped>("control_commands_stamped", 10);
+ //   pub_control_commands_ = nh_.advertise<geometry_msgs::Twist>("control_commands", 10);
 
     // Initialize global variables
 
@@ -69,7 +69,7 @@ void NearnessController::init() {
 
 } // End of init***********************************************
 
-*/
+
 
 
 //define ( can/should we move into init?)
@@ -79,7 +79,7 @@ bool enable_control;
 std::vector<float> scan_ranges;
 
 //callback for enable control (error std_msgs needs proper init?, do we need to do an init to set up like in the beginning?)
-void enableControlCallback(const std_msgs::bool msg){
+void NearnessController::enableControlCallback(const std_msgs::bool msg){
     enable_control = msg.data;
 // how do we enable in the terminal? what next?
 }
@@ -87,7 +87,7 @@ void enableControlCallback(const std_msgs::bool msg){
 
 
 //callback for the lidar scan, will clear and refresh scan vector called scan_ranges
-void scanCallback(const sensor_msgs::LaserScan::ConstPtr& scan)
+void NearnessController::scanCallback(const sensor_msgs::LaserScan::ConstPtr& scan)
 {
     int count = scan->scan_time / scan->time_increment;
     ROS_INFO("I heard a laser scan %s[%d]:", scan->header.frame_id.c_str(), count);
