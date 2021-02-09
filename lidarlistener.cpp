@@ -22,6 +22,7 @@
 #include <random>
 
 
+
 //namespace, what needs to be done here?
 /*
 namespace nearness{
@@ -76,10 +77,10 @@ int main(int argc, char **argv)
      
 //Add while loop to start converting/calculating (commented out for now while we troubleshoot above) (while ros.ok does what exactly?)
 
- /*  
+  
 
- while(ros.ok()){
- 
+ while(ros::ok()){
+ /*
        // Process the laser data       
 
 void NearnessController::horizLaserscanCb(const sensor_msgs::LaserScanPtr h_laserscan_msg){
@@ -105,12 +106,12 @@ void NearnessController::horizLaserscanCb(const sensor_msgs::LaserScanPtr h_lase
        } else {
            // Publish zeros with rosserial
        }
-           
+ */          
  
         ros::spinOnce();
     }
-}
-*/
+
+
 
 
     return 0;
