@@ -23,7 +23,7 @@
 
 
 
-//namespace, what needs to be done here?
+//namespace, what needs to be done here? is below okay?
 /*
 namespace nearness{
 NearnessController::NearnessController(const ros::NodeHandle &node_handle,
@@ -34,15 +34,54 @@ NearnessController::NearnessController(const ros::NodeHandle &node_handle,
   }
 */
 
-//define
+//init nearness controller *************************************
+
+/*
+void NearnessController::init() {
+
+// Set up dynamic reconfigure
+    reconfigure_server_.reset(new ReconfigureServer(config_mutex_, pnh_));
+    ReconfigureServer::CallbackType f = boost::bind(&NearnessController::configCb, this, _1, _2);
+    reconfigure_server_->setCallback(f);
+
+// Set up subscribers and callbacks ( we covered the first two below i think?)
+    sub_horiz_laserscan_ = nh_.subscribe("horiz_scan", 1, &NearnessController::horizLaserscanCb, this);
+    subt_enable_control_ = nh_.subscribe("enable_control", 1, &NearnessController::enableControlCb, this);
+    sub_tower_safety_ = nh_.subscribe("tower_safety", 1, &NearnessController::towerSafetyCb, this);
+    sub_beacon_stop_ = nh_.subscribe("beacon_stop", 1, &NearnessController::beaconStopCb, this);
+
+// Set up publishers
+    pub_h_scan_reformat_ = nh_.advertise<std_msgs::Float32MultiArray>("horiz_depth_reformat", 10);
+    pub_h_scan_nearness_ = nh_.advertise<std_msgs::Float32MultiArray>("horiz_nearness", 10);
+    pub_h_sf_nearness_ = nh_.advertise<std_msgs::Float32MultiArray>("horiz_sf_nearness", 10);
+    pub_h_recon_wf_nearness_ = nh_.advertise<std_msgs::Float32MultiArray>("horiz_recon_wf_nearness", 10);
+    pub_h_fourier_coefficients_ = nh_.advertise<nearness_control_msgs::FourierCoefsMsg>("horiz_fourier_coefficients", 10);
+    pub_control_commands_stamped_ = nh_.advertise<geometry_msgs::TwistStamped>("control_commands_stamped", 10);
+    pub_control_commands_ = nh_.advertise<geometry_msgs::Twist>("control_commands", 10);
+
+    // Initialize global variables
+
+    // Wide Field Forward Speed and Yaw Rate Control Gains
+
+    // Create safety boundary(if we use it to stop?)
+
+    // Initialize tower safety counters
+
+} // End of init***********************************************
+
+*/
+
+
+//define ( can/should we move into init?)
 #define RAD2DEG(x) ((x)*180./M_PI)
+//add controller gains
 bool enable_control;
 std::vector<float> scan_ranges;
 
-//callback for enable control (error std_msgs needs proper init?)
+//callback for enable control (error std_msgs needs proper init?, do we need to do an init to set up like in the beginning?)
 void enableControlCallback(const std_msgs::bool msg){
     enable_control = msg.data;
-// how do we enable? what next?
+// how do we enable in the terminal? what next?
 }
 
 
@@ -61,7 +100,9 @@ void scanCallback(const sensor_msgs::LaserScan::ConstPtr& scan)
         ROS_INFO(": [%f, %f]", degree, scan->ranges[i]);
     }
 }
-// Main begin
+
+
+// Main begin************************************************
 int main(int argc, char **argv)
 {
     ros::init(argc, argv, "lidarlistener");
@@ -75,7 +116,7 @@ int main(int argc, char **argv)
 //Initially have control turned off until we "$rosrun enable_control" right? 
     enable_control = false;
      
-//Add while loop to start converting/calculating (commented out for now while we troubleshoot above) (while ros.ok does what exactly?)
+// While loop to start converting/calculating (commented out for now while we troubleshoot above) (while ros::ok does what exactly?)******************************************************
 
   
 
@@ -98,11 +139,11 @@ void NearnessController::horizLaserscanCb(const sensor_msgs::LaserScanPtr h_lase
 
        // Determine motion state
 
-       // Publish control commands to arduino through rosserial
-
+// If statement for enable control ******************************
        if(enable_control){
            // Publish the real control commands with rosserial
 
+// Else for zeros to control command ****************************
        } else {
            // Publish zeros with rosserial
        }
