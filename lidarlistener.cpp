@@ -21,17 +21,6 @@
 #include <iostream>
 #include <random>
 #include <std_srvs/SetBool.h>
-using namespace std; //do we need this?
-//namespace, what needs to be done here? is below okay?
-/*
-namespace nearness{
-NearnessController::NearnessController(const ros::NodeHandle &node_handle,
-                                       const ros::NodeHandle &private_node_handle)
-      :nh_(node_handle),
-       pnh_(private_node_handle) {
-      this->init();
-  }
-*/
 
 //init nearness controller *************************************
 
