@@ -21,8 +21,6 @@
 #include <iostream>
 #include <random>
 
-
-
 //namespace, what needs to be done here? is below okay?
 /*
 namespace nearness{
@@ -37,11 +35,19 @@ NearnessController::NearnessController(const ros::NodeHandle &node_handle,
 //init nearness controller *************************************
 
 
-void init() {
+void init();
 
 //what do we need to init up here? seems like it was done in main according to mike?
 
-} // End of init***********************************************
+ // End of init***********************************************
+//functions
+void convertHLaserscan2CVMat(const sensor_msgs::LaserScanPtr scan_ranges);
+void computeHorizFourierCoeffs();
+void computeForwardSpeedCommand();
+void computeWFYawRateCommand();
+void computeSFYawRateCommand();
+//void enableControlCallback();
+
 
 
 //define global variables**********************
@@ -103,14 +109,15 @@ int main(int argc, char **argv)
 // While loop to start converting/calculating (commented out for now while we troubleshoot above)
 
  while(ros::ok()){
- /*
+ 
        // Process the laser data       
 
-
+/*
     // Convert incoming scan to cv matrix and reformat
     convertHLaserscan2CVMat(scan_ranges);
 //how to access the scan is that ^?
     // Compute the Fourier harmonics of the signal
+
     computeHorizFourierCoeffs();
 
     // Feed back fourier coefficients for forward speed regulation
@@ -119,7 +126,7 @@ int main(int argc, char **argv)
     computeWFYawRateCommand();
 
        // Determine motion state ( safety box stuff_
-
+*/
 // If statement for enable control ******************************
        if(enable_control){
            // Publish the real control commands with rosserial to arduino
@@ -128,7 +135,7 @@ int main(int argc, char **argv)
        } else {
            // Publish zeros with rosserial
        }
- */          
+           
 
  //check callbacks once
         ros::spinOnce();
@@ -139,4 +146,4 @@ int main(int argc, char **argv)
 
     return 0;
 
-}
+} //end  main
