@@ -102,9 +102,10 @@ int main(int argc, char **argv)
 
        // Process the laser data
 
-/*
     // Convert incoming scan to cv matrix and reformat
- void convertHLaserscan2CVMat(const sensor_msgs::LaserScanPtr scan_ranges);
+
+ convertHLaserscan2CVMat(const sensor_msgs::LaserScanPtr scan_ranges);
+ /*
 //how to access the scan is that ^?
     // Compute the Fourier harmonics of the signal
 
