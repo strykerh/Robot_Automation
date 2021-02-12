@@ -20,22 +20,22 @@
 #include <dynamic_reconfigure/server.h>
 #include <iostream>
 #include <random>
-#include <std_srvs/SetBool.h>
+// #include <std_srvs/SetBool.h>
 
 //init nearness controller *************************************
 
 
-void init();
+//void init();
 
 //what do we need to init up here? seems like it was done in main according to mike?
 
  // End of init***********************************************
 //functions ( do we need to predefine here before main?)
-void convertHLaserscan2CVMat(const sensor_msgs::LaserScanPtr scan_ranges);
-void computeHorizFourierCoeffs();
-void computeForwardSpeedCommand();
-void computeWFYawRateCommand();
-void computeSFYawRateCommand();
+// void convertHLaserscan2CVMat(const sensor_msgs::LaserScanPtr scan_ranges);
+// void computeHorizFourierCoeffs();
+// void computeForwardSpeedCommand();
+// void computeWFYawRateCommand();
+// void computeSFYawRateCommand();
 
 
 
@@ -44,12 +44,11 @@ void computeSFYawRateCommand();
 //add controller gains
 bool enable_control;
 std::vector<float> scan_ranges;
-//**************************************************************
 
 //Callbacks*****************************************************
 //callback for enable control (error std_msgs needs proper init?, do we need to do an init to set up like in the beginning?)
-void enableControlCallback(const std_msgs::bool msg){
-    enable_control = msg.data;
+void enableControlCallback(const std_msgs::BoolConstPtr& msg){
+  enable_control = msg->data;
 }
 // to enable in terminal, $ rostopic pub enable_control std_msgs/bool "true"
 
@@ -59,7 +58,7 @@ void scanCallback(const sensor_msgs::LaserScan::ConstPtr& scan)
 {
     int count = scan->scan_time / scan->time_increment;
     ROS_INFO("I heard a laser scan %s[%d]:", scan->header.frame_id.c_str(), count);
-    ROS_INFO("angle_range, %f, %f", RAD2DEG(scan->angle_min), RAD2DEG(scan->angle_max));
+    //ROS_INFO("angle_range, %f, %f", RAD2DEG(scan->angle_min), RAD2DEG(scan->angle_max));
     scan_ranges.clear();
     for(int i = 0; i < count; i++) {
         scan_ranges.push_back(scan->ranges[i]);
@@ -78,16 +77,16 @@ int main(int argc, char **argv)
     ros::init(argc, argv, "lidarlistener");
     ros::NodeHandle n;
 //Subscribers Setup**********************************************
-//ros subscribers to laserscan 
-    ros::Subscriber sub_laserscan = n.subscribe<sensor_msgs::LaserScan>("/scan", 1000, scanCallback);
+//ros subscribers to laserscan
+    ros::Subscriber sub_laserscan = n.subscribe("/scan", 1000, scanCallback);
 //ros subscriber to enable control (error because enablecontrolcallback is failing earlier or std_msgs)
-    ros::Subscriber sub_enable_control = n.subscribe<std_msgs::bool>("/enable_control", 1,enableControlCallback);
-//Initially have control turned off until we "$rosrun enable_control" right? 
+    ros::Subscriber sub_enable_control = n.subscribe("/enable_control", 1, enableControlCallback);
+//Initially have control turned off until we "$rosrun enable_control" right?
     enable_control = false;
 //***************************************************************
 
 //publishers set up**********************************************
-/* 
+/*
  ros::Publisher pub_h_scan_nearness_ = nh_.advertise<std_msgs::Float32MultiArray>("horiz_nearness", 10);
   ros::Publisher pub_h_recon_wf_nearness_ = nh_.advertise<std_msgs::Float32MultiArray>("horiz_recon_wf_nearness", 10);
  ros::Publisher pub_h_fourier_coefficients_ = nh_.advertise<nearness_control_msgs::FourierCoefsMsg>("horiz_fourier_coefficients", 10);
@@ -96,12 +95,12 @@ int main(int argc, char **argv)
 */
 //***************************************************************
 
-     
+
 // While loop to start converting/calculating (commented out for now while we troubleshoot above)
 
  while(ros::ok()){
- 
-       // Process the laser data       
+
+       // Process the laser data
 
 /*
     // Convert incoming scan to cv matrix and reformat
@@ -126,7 +125,7 @@ int main(int argc, char **argv)
        } else {
            // Publish zeros with rosserial
        }
-           
+
 
  //check callbacks once
         ros::spinOnce();
