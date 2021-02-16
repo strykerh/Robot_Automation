@@ -17,14 +17,18 @@
 #include <algorithm>
 #include <cstdlib>
 #include <std_msgs/String.h>
-#include <dynamic_reconfigure/server.h>
 #include <iostream>
 #include <random>
 #include <cv_bridge/cv_bridge.h>
+#include <geometry_msgs/TransformStamped.h>
+//#include <nearness_control_msgs/FourierCoefsMsg.h>
+
+
 // #include <std_srvs/SetBool.h>
 
 //init nearness controller *************************************
-
+using namespace cv;
+using namespace std;
 
 //void init();
 
@@ -39,25 +43,39 @@
 
 
 //define global variables**********************
+
 #define RAD2DEG(x) ((x)*180./M_PI)
-// converHtLaserscan2CVMat
 int h_num_fourier_terms_;
-//cv::Mat h_depth_cvmat_; // how do we get this to work? need cv namespace?
-// computeHorizFourierCoeffs
+cv::Mat h_depth_cvmat_; // how do we get this to work? need cv namespace?
 float h_a_[10], h_b_[10];
-    //cv::Mat h_nearness_;
-// computeWFYawRateCommand
+cv::Mat h_nearness_;
 float h_wf_r_cmd_;
-// publishControlCommandMsg
 //geometry_msgs::TwistStamped control_command_;
-
-
-
+float h_dg_;
 float total_h_scan_points_ = 4000; //double check, use this for now
-float h_sensor_max_dist_ = 6; //6 meters, not sure if should equal 6 though
-//add controller gains
+double h_sensor_max_dist_ = 6; //6 meters, not sure if should equal 6 though
+double h_sensor_min_dist_ = 0.15; //15 cm I believe (doublecheck)
+double h_scan_limit_ = 10; //what is this? chose 10 randomly for now
+float h_nearness_maxval_;
+
+std::vector<float> h_gamma_vector_;
 bool enable_control;
 std::vector<float> scan_ranges;
+
+// Generate the horizontal gamma vector ( this fails ) also replaced num_h_scan_points_ with total_h_scan_points
+/*
+    for(int i=0; i<total_h_scan_points_; i++){
+        h_gamma_vector_.push_back((float(i)/float(total_h_scan_points_))*(2*h_scan_limit_) - h_scan_limit_);
+    }
+    h_dg_ = (2.0*h_scan_limit_)/total_h_scan_points_;
+*/
+
+//add controller gains
+    double u_k_hb_1_; // =? to start with for now
+    double u_k_hb_2_; // =? to start with for now
+    double u_k_ha_1_; // =? to start with for now
+    double u_k_ha_2_; // =? to start with for now
+
 
 //Callbacks*****************************************************
 //callback for enable control
@@ -82,9 +100,9 @@ void scanCallback(const sensor_msgs::LaserScan::ConstPtr& scan)
 }
 
 
-//***********************************************************
+//end call backs ********************************************************
 
-// Main begin************************************************
+// Main begin ***********************************************************
 int main(int argc, char **argv)
 {
 
@@ -99,21 +117,18 @@ int main(int argc, char **argv)
 //***************************************************************
 
 //publishers set up**********************************************
-/*
- ros::Publisher pub_h_scan_nearness_ = nh_.advertise<std_msgs::Float32MultiArray>("horiz_nearness", 10);
-  ros::Publisher pub_h_recon_wf_nearness_ = nh_.advertise<std_msgs::Float32MultiArray>("horiz_recon_wf_nearness", 10);
- ros::Publisher pub_h_fourier_coefficients_ = nh_.advertise<nearness_control_msgs::FourierCoefsMsg>("horiz_fourier_coefficients", 10);
-  ros::Publisher pub_control_commands_stamped_ = nh_.advertise<geometry_msgs::TwistStamped>("control_commands_stamped", 10);
- ros::Publisher pub_control_commands_ = nh_.advertise<geometry_msgs::Twist>("control_commands", 10);
-*/
+// changed all "nh_." to "n." , runs now, is this okay?
+ ros::Publisher pub_h_scan_nearness_ = n.advertise<std_msgs::Float32MultiArray>("horiz_nearness", 10);
+  ros::Publisher pub_h_recon_wf_nearness_ = n.advertise<std_msgs::Float32MultiArray>("horiz_recon_wf_nearness", 10);
+// ros::Publisher pub_h_fourier_coefficients_ = n.advertise<nearness_control_msgs::FourierCoefsMsg>("horiz_fourier_coefficients", 10); // error here, nearness_control_msgs not declared in scope. Do we need msg folder with FourierCoefsMsg file and to #include it?
+//  ros::Publisher pub_control_commands_stamped_ = n.advertise<geometry_msgs::TwistStamped>("control_commands_stamped", 10); // error here
+ ros::Publisher pub_control_commands_ = n.advertise<geometry_msgs::Twist>("control_commands", 10);
+
 //***************************************************************
 
-
-// While loop to start converting/calculating (commented out for now while we troubleshoot above)
+// While loop to start converting/calculating and pushing control commands
 
  while(ros::ok()){
-
-       // Process the laser data
 
 
     // Convert incoming scan to cv matrix and reformat**************************
@@ -157,12 +172,13 @@ int main(int argc, char **argv)
 // Publish the reformatted scan
 
 // Last, convert to cvmat and saturate (need to initialize)
-/*
-    h_depth_cvmat_ = cv::Mat(1,num_h_scan_points_, CV_32FC1);
-    std::memcpy(h_depth_cvmat_.data, h_depth_vector_trimmed.data(), h_depth_vector_trimmed.size()*sizeof(float));
+
+    h_depth_cvmat_ = cv::Mat(1,total_h_scan_points_, CV_32FC1);
+
+    std::memcpy(h_depth_cvmat_.data, h_depth_vector.data(),  h_depth_vector.size()*sizeof(float)); // replace with h_depth_vector_trimmed if we trim
     h_depth_cvmat_.setTo(h_sensor_min_dist_, h_depth_cvmat_ < h_sensor_min_dist_);
     h_depth_cvmat_.setTo(h_sensor_max_dist_, h_depth_cvmat_ > h_sensor_max_dist_);
-*/
+
 
 // END Convert incoming scan to cv matrix and reformat***************************
 
@@ -172,13 +188,13 @@ int main(int argc, char **argv)
   void computeHorizFourierCoeffs();
     float h_cos_gamma_arr[h_num_fourier_terms_ + 1][num_h_scan_points_];
     float h_sin_gamma_arr[h_num_fourier_terms_ + 1][num_h_scan_points_];
-
+*/
 // Compute horizontal nearness
-    h_nearness_ = cv::Mat::zeros(cv::Size(1, num_h_scan_points_), CV_32FC1);
+    h_nearness_ = cv::Mat::zeros(cv::Size(1, total_h_scan_points_), CV_32FC1); //num_h_scan_points_ replaced with total_h_scan_points_
     h_nearness_ = 1.0/ h_depth_cvmat_;
     std::vector<float> h_nearness_array(h_nearness_.begin<float>(), h_nearness_.end<float>());
-    h_nearness_maxval_ = *std::max_element(h_nearness_array.begin(), h_nearness_array.end())
-
+    h_nearness_maxval_ = *std::max_element(h_nearness_array.begin(), h_nearness_array.end());
+/*
 // Compute the Fourier Coefficients
     cv::Mat h_cos_gamma_mat(h_num_fourier_terms_ + 1, num_h_scan_points_, CV_32FC1, h_cos_gamma_arr);
     cv::Mat h_sin_gamma_mat(h_num_fourier_terms_ + 1, num_h_scan_points_, CV_32FC1, h_sin_gamma_arr);
@@ -204,11 +220,18 @@ int main(int argc, char **argv)
 
         pub_h_fourier_coefficients_.publish(h_fourier_coefs_msg);
 
-} // End of computeHorizFourierCoeffs
-    computeWFYawRateCommand();
+} 
+// End of computeHorizFourierCoeffs******************************************
 
-       // Determine motion state ( safety box stuff)
+
+// Generate control commands**********************************************        
+computeWFYawRateCommand();
+
+// Determine motion state ( safety box stuff)
 */
+// End Generate control commands********************************************   
+
+
 // If statement for enable control ******************************
        if(enable_control){
            // Publish the real control commands with rosserial to arduino
