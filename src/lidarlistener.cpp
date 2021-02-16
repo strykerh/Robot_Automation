@@ -30,7 +30,7 @@
 using namespace cv;
 using namespace std;
 
-//void init();
+
 
  // End of init***********************************************
 //functions ( do we need to predefine here before main?)
@@ -62,20 +62,22 @@ std::vector<float> h_gamma_vector_;
 bool enable_control;
 std::vector<float> scan_ranges;
 
+//Controller Gains
+    double u_k_hb_1_;
+    double u_k_hb_2_;
+    double u_k_ha_1_;
+    double u_k_ha_2_;
+
+
 // Generate the horizontal gamma vector ( this fails ) also replaced num_h_scan_points_ with total_h_scan_points
-/*
+
+void init() {
     for(int i=0; i<total_h_scan_points_; i++){
         h_gamma_vector_.push_back((float(i)/float(total_h_scan_points_))*(2*h_scan_limit_) - h_scan_limit_);
     }
     h_dg_ = (2.0*h_scan_limit_)/total_h_scan_points_;
-*/
 
-//add controller gains
-    double u_k_hb_1_; // =? to start with for now
-    double u_k_hb_2_; // =? to start with for now
-    double u_k_ha_1_; // =? to start with for now
-    double u_k_ha_2_; // =? to start with for now
-
+}
 
 //Callbacks*****************************************************
 //callback for enable control
@@ -164,12 +166,11 @@ int main(int argc, char **argv)
  
  // Reformat the depth scan depending on the orientation of the scanner
     // scan_start_loc describes the location of the first scan index
-
  // Trim the scan down if the entire scan is not being used
 
 // Check to see if anything has entered the safety boundary (lets do this after code is more progressed
 
-// Publish the reformatted scan
+// Publish the reformatted scan** add in whenever publishers are set up in main
 
 // Last, convert to cvmat and saturate (need to initialize)
 
