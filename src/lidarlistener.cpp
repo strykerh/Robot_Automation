@@ -52,23 +52,24 @@ cv::Mat h_nearness_;
 float h_wf_r_cmd_;
 //geometry_msgs::TwistStamped control_command_;
 float h_dg_;
-float total_h_scan_points_ = 4000; //double check, use this for now
+int total_h_scan_points_ = 4000; //double check, use this for now
 double h_sensor_max_dist_ = 6; //6 meters, not sure if should equal 6 though
 double h_sensor_min_dist_ = 0.15; //15 cm I believe (doublecheck)
 double h_scan_limit_ = 10; //what is this? chose 10 randomly for now
 float h_nearness_maxval_;
 
-std::vector<float> h_gamma_vector_;
+vector<float> h_gamma_vector_;
 bool enable_control;
-std::vector<float> scan_ranges;
+vector<float> scan_ranges;
 
 // Generate the horizontal gamma vector ( this fails ) also replaced num_h_scan_points_ with total_h_scan_points
-/*
+void horizGammaVector(){
     for(int i=0; i<total_h_scan_points_; i++){
         h_gamma_vector_.push_back((float(i)/float(total_h_scan_points_))*(2*h_scan_limit_) - h_scan_limit_);
     }
     h_dg_ = (2.0*h_scan_limit_)/total_h_scan_points_;
-*/
+}
+
 
 //add controller gains
     double u_k_hb_1_; // =? to start with for now
@@ -118,9 +119,10 @@ int main(int argc, char **argv)
 
 //publishers set up**********************************************
 // changed all "nh_." to "n." , runs now, is this okay?
- ros::Publisher pub_h_scan_nearness_ = n.advertise<std_msgs::Float32MultiArray>("horiz_nearness", 10);
+  ros::Publisher pub_h_scan_nearness_ = n.advertise<std_msgs::Float32MultiArray>("horiz_nearness", 10);
   ros::Publisher pub_h_recon_wf_nearness_ = n.advertise<std_msgs::Float32MultiArray>("horiz_recon_wf_nearness", 10);
-// ros::Publisher pub_h_fourier_coefficients_ = n.advertise<nearness_control_msgs::FourierCoefsMsg>("horiz_fourier_coefficients", 10); // error here, nearness_control_msgs not declared in scope. Do we need msg folder with FourierCoefsMsg file and to #include it?
+  //ros::Publisher pub_h_fourier_coefficients_ = n.advertise<FourierCoefsMsg>("horiz_fourier_coefficients", 10); // error here, nearness_control_msgs not declared in scope. Do we need msg folder with FourierCoefsMsg file and to #include it?
+//where does Fourier Coefficient message file go?
 //  ros::Publisher pub_control_commands_stamped_ = n.advertise<geometry_msgs::TwistStamped>("control_commands_stamped", 10); // error here
  ros::Publisher pub_control_commands_ = n.advertise<geometry_msgs::Twist>("control_commands", 10);
 
@@ -133,8 +135,8 @@ int main(int argc, char **argv)
 
     // Convert incoming scan to cv matrix and reformat**************************
  void convertHLaserscan2CVMat(const sensor_msgs::LaserScanPtr scan_ranges);
- std::vector<float> h_depth_vector = scan_ranges; //->ranges;
- std::vector<float> h_depth_vector_noinfs = h_depth_vector;
+ vector<float> h_depth_vector = scan_ranges; //->ranges;
+ vector<float> h_depth_vector_noinfs = h_depth_vector;
  
     // handle infs due to sensor max distance (find total scan points)
     for(int i = 0; i<total_h_scan_points_; i++){
@@ -160,10 +162,13 @@ int main(int argc, char **argv)
             }
         }
         h_depth_vector = h_depth_vector_noinfs;
-    }
+    
  
  // Reformat the depth scan depending on the orientation of the scanner
     // scan_start_loc describes the location of the first scan index
+// Reformat the depth scan depending on the orientation of the scanner
+    // scan_start_loc describes the location of the first scan index
+
 
  // Trim the scan down if the entire scan is not being used
 
@@ -184,23 +189,23 @@ int main(int argc, char **argv)
 
 
 // Compute the Fourier harmonics of the signal***********************************
-/*
-  void computeHorizFourierCoeffs();
-    float h_cos_gamma_arr[h_num_fourier_terms_ + 1][num_h_scan_points_];
-    float h_sin_gamma_arr[h_num_fourier_terms_ + 1][num_h_scan_points_];
-*/
+
+    //void computeHorizFourierCoeffs();
+    float h_cos_gamma_arr[h_num_fourier_terms_ + 1][total_h_scan_points_];
+    float h_sin_gamma_arr[h_num_fourier_terms_ + 1][total_h_scan_points_];
+
 // Compute horizontal nearness
     h_nearness_ = cv::Mat::zeros(cv::Size(1, total_h_scan_points_), CV_32FC1); //num_h_scan_points_ replaced with total_h_scan_points_
     h_nearness_ = 1.0/ h_depth_cvmat_;
     std::vector<float> h_nearness_array(h_nearness_.begin<float>(), h_nearness_.end<float>());
     h_nearness_maxval_ = *std::max_element(h_nearness_array.begin(), h_nearness_array.end());
-/*
+
 // Compute the Fourier Coefficients
-    cv::Mat h_cos_gamma_mat(h_num_fourier_terms_ + 1, num_h_scan_points_, CV_32FC1, h_cos_gamma_arr);
-    cv::Mat h_sin_gamma_mat(h_num_fourier_terms_ + 1, num_h_scan_points_, CV_32FC1, h_sin_gamma_arr);
+    cv::Mat h_cos_gamma_mat(h_num_fourier_terms_ + 1, total_h_scan_points_, CV_32FC1, h_cos_gamma_arr);
+    cv::Mat h_sin_gamma_mat(h_num_fourier_terms_ + 1, total_h_scan_points_, CV_32FC1, h_sin_gamma_arr);
 
     for (int i = 0; i < h_num_fourier_terms_ + 1; i++) {
-        for (int j = 0; j < num_h_scan_points_; j++) {
+        for (int j = 0; j < total_h_scan_points_; j++) {
             h_cos_gamma_arr[i][j] = cos(i * h_gamma_vector_[j]);
             h_sin_gamma_arr[i][j] = sin(i * h_gamma_vector_[j]);
         }
@@ -211,7 +216,7 @@ int main(int argc, char **argv)
         // Convert array to vector
         std::vector<float> h_a_vector(h_a_, h_a_ + sizeof h_a_ / sizeof h_a_[0]);
         std::vector<float> h_b_vector(h_b_, h_b_ + sizeof h_b_ / sizeof h_b_[0]);
-
+/*
         nearness_control_msgs::FourierCoefsMsg h_fourier_coefs_msg;
 
         h_fourier_coefs_msg.header.stamp = ros::Time::now();
@@ -219,27 +224,27 @@ int main(int argc, char **argv)
         h_fourier_coefs_msg.b = h_b_vector;
 
         pub_h_fourier_coefficients_.publish(h_fourier_coefs_msg);
-
+*/
 } 
 // End of computeHorizFourierCoeffs******************************************
 
 
 // Generate control commands**********************************************        
-computeWFYawRateCommand();
+//computeWFYawRateCommand();
 
 // Determine motion state ( safety box stuff)
-*/
+
 // End Generate control commands********************************************   
 
 
 // If statement for enable control ******************************
-       if(enable_control){
+       //if(enable_control){
            // Publish the real control commands with rosserial to arduino
 
 // Else for zeros to control command ****************************
-       } else {
+     //  } else {
            // Publish zeros with rosserial
-       }
+      // }
 
 
  //check callbacks once
@@ -249,6 +254,6 @@ computeWFYawRateCommand();
 
 
 
-    return 0;
+   return 0;
 
 } //end  main
