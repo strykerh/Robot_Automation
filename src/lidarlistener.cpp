@@ -9,6 +9,7 @@
 #include <std_msgs/Int32.h>
 #include <std_msgs/String.h>
 #include <geometry_msgs/Twist.h>
+#include <geometry_msgs/TwistStamped.h>
 #include <geometry_msgs/Pose.h>
 #include <math.h>
 #include <numeric>
@@ -21,7 +22,12 @@
 #include <random>
 #include <cv_bridge/cv_bridge.h>
 #include <geometry_msgs/TransformStamped.h>
+<<<<<<< Updated upstream
 #include <nearness_control_msgs/FourierCoefsMsg.h>  //how to make this work? will fix all our issues
+=======
+#include <nearness_control_msgs/FourierCoefsMsg.h>
+#include <nearness_control_msgs/ClusterMsg.h>
+>>>>>>> Stashed changes
 
 
 // #include <std_srvs/SetBool.h>
@@ -50,7 +56,7 @@ cv::Mat h_depth_cvmat_; // how do we get this to work? need cv namespace?
 float h_a_[10], h_b_[10];
 cv::Mat h_nearness_;
 float h_wf_r_cmd_;
-//geometry_msgs::TwistStamped control_command_;
+geometry_msgs::TwistStamped control_command_;
 float h_dg_;
 int total_h_scan_points_ = 4000; //double check, use this for now
 double h_sensor_max_dist_ = 6; //6 meters, not sure if should equal 6 though
@@ -121,9 +127,14 @@ int main(int argc, char **argv)
 // changed all "nh_." to "n." , runs now, is this okay?
   ros::Publisher pub_h_scan_nearness_ = n.advertise<std_msgs::Float32MultiArray>("horiz_nearness", 10);
   ros::Publisher pub_h_recon_wf_nearness_ = n.advertise<std_msgs::Float32MultiArray>("horiz_recon_wf_nearness", 10);
+<<<<<<< Updated upstream
   ros::Publisher pub_h_fourier_coefficients_ = n.advertise<FourierCoefsMsg>("horiz_fourier_coefficients", 10); // error here, nearness_control_msgs not declared in scope. Do we need msg folder with FourierCoefsMsg file and to #include it?
 //where does Fourier Coefficient message file go?
 //  ros::Publisher pub_control_commands_stamped_ = n.advertise<geometry_msgs::TwistStamped>("control_commands_stamped", 10); // error here
+=======
+  ros::Publisher pub_h_fourier_coefficients_ = n.advertise<nearness_control_msgs::FourierCoefsMsg>("horiz_fourier_coefficients", 10);  
+ros::Publisher pub_control_commands_stamped_ = n.advertise<geometry_msgs::TwistStamped>("control_commands_stamped", 10); 
+>>>>>>> Stashed changes
  ros::Publisher pub_control_commands_ = n.advertise<geometry_msgs::Twist>("control_commands", 10);
 
 //***************************************************************
@@ -135,7 +146,7 @@ int main(int argc, char **argv)
 
     // Convert incoming scan to cv matrix and reformat**************************
  void convertHLaserscan2CVMat(const sensor_msgs::LaserScanPtr scan_ranges);
- vector<float> h_depth_vector = scan_ranges; //->ranges;
+ vector<float> h_depth_vector = scan_ranges->ranges;
  vector<float> h_depth_vector_noinfs = h_depth_vector;
  
     // handle infs due to sensor max distance (find total scan points)
