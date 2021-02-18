@@ -22,12 +22,8 @@
 #include <random>
 #include <cv_bridge/cv_bridge.h>
 #include <geometry_msgs/TransformStamped.h>
-<<<<<<< Updated upstream
-#include <nearness_control_msgs/FourierCoefsMsg.h>  //how to make this work? will fix all our issues
-=======
 #include <nearness_control_msgs/FourierCoefsMsg.h>
 #include <nearness_control_msgs/ClusterMsg.h>
->>>>>>> Stashed changes
 
 
 // #include <std_srvs/SetBool.h>
@@ -121,20 +117,15 @@ int main(int argc, char **argv)
 //ros subscriber to enable control 
     ros::Subscriber sub_enable_control = n.subscribe("/enable_control", 1, enableControlCallback);
     enable_control = false;
+//any other subscribers needed? (besides arduino rosserial)
 //***************************************************************
 
 //publishers set up**********************************************
 // changed all "nh_." to "n." , runs now, is this okay?
   ros::Publisher pub_h_scan_nearness_ = n.advertise<std_msgs::Float32MultiArray>("horiz_nearness", 10);
   ros::Publisher pub_h_recon_wf_nearness_ = n.advertise<std_msgs::Float32MultiArray>("horiz_recon_wf_nearness", 10);
-<<<<<<< Updated upstream
-  ros::Publisher pub_h_fourier_coefficients_ = n.advertise<FourierCoefsMsg>("horiz_fourier_coefficients", 10); // error here, nearness_control_msgs not declared in scope. Do we need msg folder with FourierCoefsMsg file and to #include it?
-//where does Fourier Coefficient message file go?
-//  ros::Publisher pub_control_commands_stamped_ = n.advertise<geometry_msgs::TwistStamped>("control_commands_stamped", 10); // error here
-=======
   ros::Publisher pub_h_fourier_coefficients_ = n.advertise<nearness_control_msgs::FourierCoefsMsg>("horiz_fourier_coefficients", 10);  
 ros::Publisher pub_control_commands_stamped_ = n.advertise<geometry_msgs::TwistStamped>("control_commands_stamped", 10); 
->>>>>>> Stashed changes
  ros::Publisher pub_control_commands_ = n.advertise<geometry_msgs::Twist>("control_commands", 10);
 
 //***************************************************************
@@ -146,7 +137,7 @@ ros::Publisher pub_control_commands_stamped_ = n.advertise<geometry_msgs::TwistS
 
     // Convert incoming scan to cv matrix and reformat**************************
  void convertHLaserscan2CVMat(const sensor_msgs::LaserScanPtr scan_ranges);
- vector<float> h_depth_vector = scan_ranges->ranges;
+ vector<float> h_depth_vector = scan_ranges->ranges; //error here
  vector<float> h_depth_vector_noinfs = h_depth_vector;
  
     // handle infs due to sensor max distance (find total scan points)
@@ -201,7 +192,7 @@ ros::Publisher pub_control_commands_stamped_ = n.advertise<geometry_msgs::TwistS
 
 // Compute the Fourier harmonics of the signal***********************************
 
-    //void computeHorizFourierCoeffs();
+//computeHorizFourierCoeffs();
     float h_cos_gamma_arr[h_num_fourier_terms_ + 1][total_h_scan_points_];
     float h_sin_gamma_arr[h_num_fourier_terms_ + 1][total_h_scan_points_];
 
@@ -235,27 +226,34 @@ ros::Publisher pub_control_commands_stamped_ = n.advertise<geometry_msgs::TwistS
         h_fourier_coefs_msg.b = h_b_vector;
 
         pub_h_fourier_coefficients_.publish(h_fourier_coefs_msg);
-
 } 
 // End of computeHorizFourierCoeffs******************************************
-
-
-// Generate control commands**********************************************        
-//computeWFYawRateCommand();
+// Generate WF control commands*******************************************        
+/*
+{
+    h_wf_r_cmd_ = r_k_hb_1_*h_b_[1] + r_k_hb_2_*h_b_[2];
+    
+    // Saturate the wide field yaw rate command
+    if(h_wf_r_cmd_ < -r_max_) {
+        h_wf_r_cmd_ = -r_max_;
+    } else if(h_wf_r_cmd_ > r_max_) {
+        h_wf_r_cmd_ = r_max_;
+    }
+}
+*/
 
 // Determine motion state ( safety box stuff)
-
 // End Generate control commands********************************************   
 
 
 // If statement for enable control ******************************
-       //if(enable_control){
+       if(enable_control){
            // Publish the real control commands with rosserial to arduino
 
 // Else for zeros to control command ****************************
-     //  } else {
+       } else {
            // Publish zeros with rosserial
-      // }
+       }
 
 
  //check callbacks once
