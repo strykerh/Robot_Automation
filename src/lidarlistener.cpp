@@ -54,8 +54,8 @@ cv::Mat h_nearness_;
 float h_wf_r_cmd_;
 geometry_msgs::TwistStamped control_command_;
 float h_dg_;
-int total_h_scan_points_ = 4000; //double check, use this for now
-double h_sensor_max_dist_ = 6; //6 meters, not sure if should equal 6 though
+int total_h_scan_points_ = 360; //double check, use this for now
+double h_sensor_max_dist_ = 12; //12 meters, not sure if should equal 6 though
 double h_sensor_min_dist_ = 0.15; //15 cm I believe (doublecheck)
 double h_scan_limit_ = 10; //what is this? chose 10 randomly for now
 float h_nearness_maxval_;
@@ -74,10 +74,17 @@ void horizGammaVector(){
 
 
 //add controller gains
-    double u_k_hb_1_; // =? to start with for now
-    double u_k_hb_2_; // =? to start with for now
-    double u_k_ha_1_; // =? to start with for now
-    double u_k_ha_2_; // =? to start with for now
+    double u_k_hb_1_; // =? //to start with for now
+    double u_k_hb_2_; // =? //to start with for now
+    double u_k_ha_1_; // =? //to start with for now
+    double u_k_ha_2_; // =? //to start with for now
+    double r_k_hb_1_; // =? //to start with for now
+    double r_k_hb_2_; // =? //to start with for now
+    double r_k_vb_1_; // =? //to start with for now
+    double r_k_vb_2_; // =? //to start with for now
+    double r_max_;
+    double u_cmd_ = 1;
+    
 
 
 //Callbacks*****************************************************
@@ -134,10 +141,8 @@ ros::Publisher pub_control_commands_stamped_ = n.advertise<geometry_msgs::TwistS
 
  while(ros::ok()){
 
-
-    // Convert incoming scan to cv matrix and reformat**************************
- void convertHLaserscan2CVMat(const sensor_msgs::LaserScanPtr scan_ranges);
- vector<float> h_depth_vector = scan_ranges->ranges; //error here
+// Convert incoming scan to cv matrix and reformat**************************
+ vector<float> h_depth_vector = scan_ranges; 
  vector<float> h_depth_vector_noinfs = h_depth_vector;
  
     // handle infs due to sensor max distance (find total scan points)
@@ -206,6 +211,7 @@ ros::Publisher pub_control_commands_stamped_ = n.advertise<geometry_msgs::TwistS
     cv::Mat h_cos_gamma_mat(h_num_fourier_terms_ + 1, total_h_scan_points_, CV_32FC1, h_cos_gamma_arr);
     cv::Mat h_sin_gamma_mat(h_num_fourier_terms_ + 1, total_h_scan_points_, CV_32FC1, h_sin_gamma_arr);
 
+//perform fourier projections
     for (int i = 0; i < h_num_fourier_terms_ + 1; i++) {
         for (int j = 0; j < total_h_scan_points_; j++) {
             h_cos_gamma_arr[i][j] = cos(i * h_gamma_vector_[j]);
@@ -228,8 +234,8 @@ ros::Publisher pub_control_commands_stamped_ = n.advertise<geometry_msgs::TwistS
         pub_h_fourier_coefficients_.publish(h_fourier_coefs_msg);
 } 
 // End of computeHorizFourierCoeffs******************************************
+
 // Generate WF control commands*******************************************        
-/*
 {
     h_wf_r_cmd_ = r_k_hb_1_*h_b_[1] + r_k_hb_2_*h_b_[2];
     
@@ -239,10 +245,11 @@ ros::Publisher pub_control_commands_stamped_ = n.advertise<geometry_msgs::TwistS
     } else if(h_wf_r_cmd_ > r_max_) {
         h_wf_r_cmd_ = r_max_;
     }
-}
-*/
 
-// Determine motion state ( safety box stuff)
+}
+
+
+// Determine motion state ( safety box stuff, add in when code is more developed)
 // End Generate control commands********************************************   
 
 
@@ -250,9 +257,26 @@ ros::Publisher pub_control_commands_stamped_ = n.advertise<geometry_msgs::TwistS
        if(enable_control){
            // Publish the real control commands with rosserial to arduino
 
+                //real control command
+                control_command_.twist.linear.x = u_cmd_;
+                control_command_.twist.linear.y = 0;
+                control_command_.twist.linear.z = 0;
+                control_command_.twist.angular.z = h_wf_r_cmd_;
+
+                //Publishing to arduino
+
+
+
 // Else for zeros to control command ****************************
        } else {
            // Publish zeros with rosserial
+           //set commands to zero
+                control_command_.twist.linear.x = 0;
+                control_command_.twist.linear.y = 0;
+                control_command_.twist.linear.z = 0;
+                control_command_.twist.angular.z = 0;
+          // Publish to arduino
+
        }
 
 
