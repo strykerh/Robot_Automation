@@ -64,7 +64,7 @@ vector<float> h_gamma_vector_;
 bool enable_control;
 vector<float> scan_ranges;
 
-// Generate the horizontal gamma vector ( this fails ) also replaced num_h_scan_points_ with total_h_scan_points
+// Generate the horizontal gamma vector  also replaced num_h_scan_points_ with total_h_scan_points
 void horizGammaVector(){
     for(int i=0; i<total_h_scan_points_; i++){
         h_gamma_vector_.push_back((float(i)/float(total_h_scan_points_))*(2*h_scan_limit_) - h_scan_limit_);
@@ -82,10 +82,14 @@ void horizGammaVector(){
     double r_k_hb_2_; // =? //to start with for now
     double r_k_vb_1_; // =? //to start with for now
     double r_k_vb_2_; // =? //to start with for now
-    double r_max_;
-    double u_cmd_ = 1;
-    
+    double r_max_;   //maximum turn value, determined through testing
+    double u_cmd_ = 1; //forward speed command, determine during testing
+    double rev_u_cmd_ = -u_cmd_;  //reverse speed command
 
+//safety box stuff, will be used to indicate when vehicle should stop
+    bool boundary_stop = false;
+    bool left_side_flag = false;
+    bool right_side_flag = false;
 
 //Callbacks*****************************************************
 //callback for enable control
@@ -93,7 +97,21 @@ void enableControlCallback(const std_msgs::BoolConstPtr& msg){
   enable_control = msg->data;
 }
 // to enable in terminal, $ rostopic pub enable_control std_msgs/bool "true"
+<<<<<<< Updated upstream
+=======
 
+//callback for reverse control
+void enableReverseCallback(const std_msgs::BoolConstPtr& msg){
+  enable_reverse = msg->data;
+}
+>>>>>>> Stashed changes
+
+//do we need a callback like this for boundary_stop?
+/*
+void enableBoundaryStopCallback(const std_msgs::BoolConstPtr& msg){
+  boundary_stop = msg->data;
+}
+*/
 
 //callback for the lidar scan, will clear and refresh scan vector called scan_ranges
 void scanCallback(const sensor_msgs::LaserScan::ConstPtr& scan)
@@ -108,22 +126,33 @@ void scanCallback(const sensor_msgs::LaserScan::ConstPtr& scan)
         ROS_INFO(": [%f, %f]", degree, scan->ranges[i]);
     }
 }
-
-
 //end call backs ********************************************************
 
 // Main begin ***********************************************************
 int main(int argc, char **argv)
 {
-
+// initialize ros
     ros::init(argc, argv, "lidarlistener");
     ros::NodeHandle n;
+
 //Subscribers Setup**********************************************
 //ros subscribers to laserscan
     ros::Subscriber sub_laserscan = n.subscribe("/scan", 1000, scanCallback);
 //ros subscriber to enable control 
     ros::Subscriber sub_enable_control = n.subscribe("/enable_control", 1, enableControlCallback);
     enable_control = false;
+<<<<<<< Updated upstream
+=======
+//ros subscriber to enable reverse
+    ros::Subscriber sub_enable_reverse = n.subscribe("/enable_reverse", 1, enableReverseCallback);
+    enable_reverse = false;
+//is a subscriber needed for safety box stop?
+/*
+    ros::Subscriber sub_boundary_stop = n.subscribe("/boundary_stop", 1, enableBoundaryStopCallback);
+    boundary_stop = false;
+*/
+
+>>>>>>> Stashed changes
 //any other subscribers needed? (besides arduino rosserial)
 //***************************************************************
 
@@ -179,11 +208,10 @@ ros::Publisher pub_control_commands_stamped_ = n.advertise<geometry_msgs::TwistS
 
  // Trim the scan down if the entire scan is not being used
 
-// Check to see if anything has entered the safety boundary (lets do this after code is more progressed
 
 // Publish the reformatted scan
 
-// Last, convert to cvmat and saturate (need to initialize)
+// Last, convert to cvmat and saturate 
 
     h_depth_cvmat_ = cv::Mat(1,total_h_scan_points_, CV_32FC1);
 
@@ -191,9 +219,7 @@ ros::Publisher pub_control_commands_stamped_ = n.advertise<geometry_msgs::TwistS
     h_depth_cvmat_.setTo(h_sensor_min_dist_, h_depth_cvmat_ < h_sensor_min_dist_);
     h_depth_cvmat_.setTo(h_sensor_max_dist_, h_depth_cvmat_ > h_sensor_max_dist_);
 
-
 // END Convert incoming scan to cv matrix and reformat***************************
-
 
 // Compute the Fourier harmonics of the signal***********************************
 
@@ -247,10 +273,37 @@ ros::Publisher pub_control_commands_stamped_ = n.advertise<geometry_msgs::TwistS
     }
 
 }
-
-
-// Determine motion state ( safety box stuff, add in when code is more developed)
 // End Generate control commands********************************************   
+
+// Begin Safety boundary/ end boundary *****************************
+/*
+//look at left side of vehicle scan( if any value in this portion of the scan vector  =0.15, set left side flag to true)
+// trim to left side of scan_ranges, eg  scan_ranges(180:270)
+        vector<float> left_range = scan_ranges(180:270)
+        if( left_range has any value = to 0.15){
+            left_side_flag = true;
+}
+
+
+//look at right side of vehicle scan( if any value in this portion of the scan vector  =0.15, set right side flag to true)
+// trim to right side of scan_ranges, eg  scan_ranges(90:180)
+        vector<float> right_range = scan_ranges(90:180)
+        if( right_range has any value = to 0.15){
+            right_side_flag = true;
+}
+
+//if left side flag and right side flag are true, then set boundary_stop to true
+        if (left_side_flag && right_side_flag){
+            boundary_stop = true;
+}
+*/
+// when boundary_stop is set to true, set enable_control to false 
+
+        if(boundary_stop){
+            enable_control = false;
+}
+
+//End safety boundary/end boundary
 
 
 // If statement for enable control ******************************
@@ -266,9 +319,28 @@ ros::Publisher pub_control_commands_stamped_ = n.advertise<geometry_msgs::TwistS
                 //Publishing to arduino
 
 
+<<<<<<< Updated upstream
 
 // Else for zeros to control command ****************************
        } else {
+=======
+}
+// Else for zeros to control command ****************************
+        
+        else if(enable_reverse){
+
+    double rev_h_wf_r_cmd_ = -h_wf_r_cmd_;
+
+                control_command_.twist.linear.x = rev_u_cmd_;
+                control_command_.twist.linear.y = 0;
+                control_command_.twist.linear.z = 0;
+                control_command_.twist.angular.z = rev_h_wf_r_cmd_;
+
+}
+        
+
+        else {
+>>>>>>> Stashed changes
            // Publish zeros with rosserial
            //set commands to zero
                 control_command_.twist.linear.x = 0;
