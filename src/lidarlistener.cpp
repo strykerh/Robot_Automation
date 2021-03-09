@@ -122,6 +122,9 @@ void enableBoundaryStopCallback(const std_msgs::BoolConstPtr& msg){
   boundary_stop = msg->data;
 }
 */
+
+// safety box stuff: expects a scan 0-2pi from due right (0deg) CCW to create safety box and compare to
+
 void generateSafetyBox(){  // creates a safety box around the vehicle
   // polar format: 0-2pi in degrees with corresponding radius: safety_boundary
   // Box is rectangular in the rear, front is semiciricular
@@ -357,7 +360,12 @@ ros::Publisher pub_control_commands_stamped_ = n.advertise<geometry_msgs::TwistS
 
 // Begin Safety boundary/ end boundary *****************************
 generateSafetyBox();
-checkSafetyBox(scan_ranges);
+if(safety_box_on){
+ checkSafetyBox(scan_ranges);
+}
+else(){
+ // output error in safety box creation
+}
 if(boundary_stop){
   enable_control = false;
 }
