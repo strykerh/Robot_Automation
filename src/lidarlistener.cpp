@@ -53,25 +53,36 @@ float h_a_[10], h_b_[10];
 cv::Mat h_nearness_;
 float h_wf_r_cmd_;
 geometry_msgs::TwistStamped control_command_;
-float h_dg_;
+//float h_dg_;
 int total_h_scan_points_ = 360; //double check, use this for now
 double h_sensor_max_dist_ = 12; //12 meters, not sure if should equal 6 though
 double h_sensor_min_dist_ = 0.15; //15 cm I believe (doublecheck)
-double h_scan_limit_ = 10; //what is this? chose 10 randomly for now
+// double h_scan_limit_ = 10; //what is this? chose 10 randomly for now
 float h_nearness_maxval_;
 
 vector<float> h_gamma_vector_;
 bool enable_control;
-bool enable_reverse;
 vector<float> scan_ranges;
 
-// Generate the horizontal gamma vector ( this fails ) also replaced num_h_scan_points_ with total_h_scan_points
+// Generate the horizontal gamma vector  also replaced num_h_scan_points_ with total_h_scan_points
 void horizGammaVector(){
     for(int i=0; i<total_h_scan_points_; i++){
         h_gamma_vector_.push_back((float(i)/float(total_h_scan_points_))*(2*h_scan_limit_) - h_scan_limit_);
     }
     h_dg_ = (2.0*h_scan_limit_)/total_h_scan_points_;
 }
+
+//Safety box stuff
+float radial_dist = 0.18;
+float r_dist = 0.40;
+bool boundary_stop = false;
+bool left_side_flag = false;
+bool right_side_flag = false;
+bool safety_box_on = false;
+float h_scan_limit_ = M_PI;
+float total_h_scan_points_ = 360;
+std::vector<float>  safety_boundary_;
+float h_dg_ = (2.0*h_scan_limit_)/total_h_scan_points_;
 
 
 //add controller gains
@@ -83,21 +94,101 @@ void horizGammaVector(){
     double r_k_hb_2_; // =? //to start with for now
     double r_k_vb_1_; // =? //to start with for now
     double r_k_vb_2_; // =? //to start with for now
-    double r_max_;
-    double u_cmd_ = 1;
-    
+    double r_max_;   //maximum turn value, determined through testing
+    double u_cmd_ = 1; //forward speed command, determine during testing
+    double rev_u_cmd_ = -u_cmd_;  //reverse speed command
 
+//safety box stuff, will be used to indicate when vehicle should stop
+  
 
 //Callbacks*****************************************************
 //callback for enable control
 void enableControlCallback(const std_msgs::BoolConstPtr& msg){
   enable_control = msg->data;
 }
+// to enable in terminal, $ rostopic pub enable_control std_msgs/bool "true"
+<<<<<<< Updated upstream
+=======
+
+//callback for reverse control
 void enableReverseCallback(const std_msgs::BoolConstPtr& msg){
   enable_reverse = msg->data;
 }
-// to enable in terminal, $ rostopic pub enable_control std_msgs/bool "true"
+>>>>>>> Stashed changes
 
+//do we need a callback like this for boundary_stop?
+/*
+void enableBoundaryStopCallback(const std_msgs::BoolConstPtr& msg){
+  boundary_stop = msg->data;
+}
+*/
+void generateSafetyBox(){  // creates a safety box around the vehicle
+  // polar format: 0-2pi in degrees with corresponding radius: safety_boundary
+  // Box is rectangular in the rear, front is semiciricular
+  // Radius is just above the minimum sensing distance of lidar in front 15+3cm
+  
+    // ("Generating safety box."); // print with ROS_INFO
+    
+    //bool safety_box_corner_switch = false;
+    // Generate the left boundary
+    for(int i = 0; i < total_h_scan_points_; i++){
+
+      if(h_dg_*i < h_scan_limit_ ){ //from 0-pi
+        safety_boundary_.push_back(radial_dist);
+      }
+      else if( ((h_dg_*i)-h_scan_limit_) < atan(r_dist/radial_dist) ){ //pi to back left corner
+        safety_boundary_.push_back(radial_dist/cos((h_dg_*i)-h_scan_limit_));
+      }
+      else if( ((h_dg_*i)-(1.5*h_scan_limit_)) < atan(radial_dist/r_dist)){ //back left to back right
+        safety_boundary_.push_back(r_dist/sin((h_dg_*i)-h_scan_limit_));
+      }
+      else{ //remaining, back right to 0
+        safety_boundary_.push_back(radial_dist/sin((h_dg_*i)-(1.5*h_scan_limit_)));
+      }
+    }
+    safety_box_on = true;
+  }
+
+void checkSafetyBox(std::vector<float> scan){
+  /*
+  flag_too_close_front_ = false;
+  flag_too_close_left_ = false; already declared globally
+  flag_too_close_right_ = false;
+  */
+  for(int i = 0; i < total_h_scan_points_; i++){
+    if((scan[i] < safety_boundary_[i]){
+      box_index_.push_back(i)
+    }
+  }
+  num_indices_ = box_index_.size();
+  int num_ind = (int) num_indices_;//convert unsigned int to int
+  if (num_ind == 0){
+    return 0;
+        // cout << "No boundary violation" << endl; or equiv with ROS
+  }
+  else(){
+    for(int i = 0; i < num_ind; i++){
+      if ((h_dg_*box_index_[i] < h_scan_limit/2)||(h_dg_*box_index_[i] >= (((3/2)*M_PI) + atan(radial_dist/r_dist)))){
+        right_++;
+      }
+      else if ((h_dg_*box_index_[i] >= h_scan_limit_/2 )&& (h_dg_*box_index_[i] < h_scan_limit_+ atan(r_dist/radial_dist))){
+        left_++;
+      }
+      else(){ // add front flag??
+        rear_++;
+      }
+    }
+  }
+    if(right_!=0){
+      right_side_flag = true;
+    }
+    if(left_!=0){
+      left_side_flag = true;
+    }
+    if(right_side_flag && left_side_flag){
+      boundary_stop = true;
+    }
+}  
 
 //callback for the lidar scan, will clear and refresh scan vector called scan_ranges
 void scanCallback(const sensor_msgs::LaserScan::ConstPtr& scan)
@@ -112,25 +203,33 @@ void scanCallback(const sensor_msgs::LaserScan::ConstPtr& scan)
         ROS_INFO(": [%f, %f]", degree, scan->ranges[i]);
     }
 }
-
-
 //end call backs ********************************************************
 
 // Main begin ***********************************************************
 int main(int argc, char **argv)
 {
-
+// initialize ros
     ros::init(argc, argv, "lidarlistener");
     ros::NodeHandle n;
+
 //Subscribers Setup**********************************************
 //ros subscribers to laserscan
     ros::Subscriber sub_laserscan = n.subscribe("/scan", 1000, scanCallback);
 //ros subscriber to enable control 
     ros::Subscriber sub_enable_control = n.subscribe("/enable_control", 1, enableControlCallback);
     enable_control = false;
+<<<<<<< Updated upstream
+=======
 //ros subscriber to enable reverse
     ros::Subscriber sub_enable_reverse = n.subscribe("/enable_reverse", 1, enableReverseCallback);
     enable_reverse = false;
+//is a subscriber needed for safety box stop?
+/*
+    ros::Subscriber sub_boundary_stop = n.subscribe("/boundary_stop", 1, enableBoundaryStopCallback);
+    boundary_stop = false;
+*/
+
+>>>>>>> Stashed changes
 //any other subscribers needed? (besides arduino rosserial)
 //***************************************************************
 
@@ -186,11 +285,10 @@ ros::Publisher pub_control_commands_stamped_ = n.advertise<geometry_msgs::TwistS
 
  // Trim the scan down if the entire scan is not being used
 
-// Check to see if anything has entered the safety boundary (lets do this after code is more progressed
 
 // Publish the reformatted scan
 
-// Last, convert to cvmat and saturate (need to initialize)
+// Last, convert to cvmat and saturate 
 
     h_depth_cvmat_ = cv::Mat(1,total_h_scan_points_, CV_32FC1);
 
@@ -198,9 +296,7 @@ ros::Publisher pub_control_commands_stamped_ = n.advertise<geometry_msgs::TwistS
     h_depth_cvmat_.setTo(h_sensor_min_dist_, h_depth_cvmat_ < h_sensor_min_dist_);
     h_depth_cvmat_.setTo(h_sensor_max_dist_, h_depth_cvmat_ > h_sensor_max_dist_);
 
-
 // END Convert incoming scan to cv matrix and reformat***************************
-
 
 // Compute the Fourier harmonics of the signal***********************************
 
@@ -254,10 +350,39 @@ ros::Publisher pub_control_commands_stamped_ = n.advertise<geometry_msgs::TwistS
     }
 
 }
-
-
-// Determine motion state ( safety box stuff, add in when code is more developed)
 // End Generate control commands********************************************   
+
+// Begin Safety boundary/ end boundary *****************************
+generateSafetyBox();
+checkSafetyBox(scan_ranges);
+if(boundary_stop){
+  enable_control = false;
+}
+/*
+//look at left side of vehicle scan( if any value in this portion of the scan vector  =0.15, set left side flag to true)
+// trim to left side of scan_ranges, eg  scan_ranges(180:270)
+        vector<float> left_range = scan_ranges(180:270)
+        if( left_range has any value = to 0.15){
+            left_side_flag = true;
+}
+//look at right side of vehicle scan( if any value in this portion of the scan vector  =0.15, set right side flag to true)
+// trim to right side of scan_ranges, eg  scan_ranges(90:180)
+        vector<float> right_range = scan_ranges(90:180)
+        if( right_range has any value = to 0.15){
+            right_side_flag = true;
+}
+//if left side flag and right side flag are true, then set boundary_stop to true
+        if (left_side_flag && right_side_flag){
+            boundary_stop = true;
+}
+*/
+// when boundary_stop is set to true, set enable_control to false 
+
+      //  if(boundary_stop){
+      //      enable_control = false;
+//}
+
+//End safety boundary/end boundary
 
 
 // If statement for enable control ******************************
@@ -273,14 +398,28 @@ ros::Publisher pub_control_commands_stamped_ = n.advertise<geometry_msgs::TwistS
                 //Publishing to arduino
 
 
+<<<<<<< Updated upstream
+
+// Else for zeros to control command ****************************
+       } else {
+=======
 }
 // Else for zeros to control command ****************************
         
         else if(enable_reverse){
 
+    double rev_h_wf_r_cmd_ = -h_wf_r_cmd_;
+
+                control_command_.twist.linear.x = rev_u_cmd_;
+                control_command_.twist.linear.y = 0;
+                control_command_.twist.linear.z = 0;
+                control_command_.twist.angular.z = rev_h_wf_r_cmd_;
 
 }
+        
+
         else {
+>>>>>>> Stashed changes
            // Publish zeros with rosserial
            //set commands to zero
                 control_command_.twist.linear.x = 0;
