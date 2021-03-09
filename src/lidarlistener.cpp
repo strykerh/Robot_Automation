@@ -155,6 +155,9 @@ void checkSafetyBox(std::vector<float> scan_ranges){
   flag_too_close_left_ = false; already declared globally
   flag_too_close_right_ = false;
   */
+  int left_ = 0;
+  int right_ = 0;
+  int rear_ = 0;
   for(int i = 0; i < total_h_scan_points_; i++){
     if((scan[i] < safety_boundary_[i]){
       box_index_.push_back(i)
