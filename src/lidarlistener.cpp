@@ -74,7 +74,7 @@ void horizGammaVector(){
 
 //Safety box stuff
 float radial_dist = 0.18;
-float r_dist = 0.40;
+float r_dist = 0.45;
 bool boundary_stop = false;
 bool left_side_flag = false;
 bool right_side_flag = false;
