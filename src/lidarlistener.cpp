@@ -149,7 +149,7 @@ void generateSafetyBox(){  // creates a safety box around the vehicle
     safety_box_on = true;
   }
 
-void checkSafetyBox(std::vector<float> scan){
+void checkSafetyBox(std::vector<float> scan_ranges){
   /*
   flag_too_close_front_ = false;
   flag_too_close_left_ = false; already declared globally
