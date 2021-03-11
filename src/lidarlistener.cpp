@@ -266,9 +266,16 @@ ros::Publisher pub_control_commands_stamped_ = n.advertise<geometry_msgs::TwistS
  ros::Publisher pub_servo_attach_ = n.advertise<geometry_msgs::Twist>("servo_attach_cmd", 10);
 //***************************************************************
 
+//call generate safety box function
+generateSafetyBox();
+
+
 // While loop to start converting/calculating and pushing control commands
 
  while(ros::ok()){
+
+//call function for safety boundary check
+checkSafetyBox(scan_ranges); //is this the right input arguement
 
 //manual TDR wire re-attachment to servo 
     if(servo_attach){
@@ -401,7 +408,8 @@ ros::Publisher pub_control_commands_stamped_ = n.advertise<geometry_msgs::TwistS
                 control_command_.twist.angular.z = h_wf_r_cmd_;
 
                 //Publishing to arduino
-
+                pub_control_commands_.publish(control_command_);
+ 
 
 }
 // Else for zeros to control command ****************************
@@ -416,7 +424,7 @@ ros::Publisher pub_control_commands_stamped_ = n.advertise<geometry_msgs::TwistS
                 control_command_.twist.angular.z = rev_h_wf_r_cmd_;
 
  //Publishing to arduino
-
+                pub_control_commands_.publish(control_command_);
 }
         
 
@@ -428,8 +436,10 @@ ros::Publisher pub_control_commands_stamped_ = n.advertise<geometry_msgs::TwistS
                 control_command_.twist.linear.z = 0;
                 control_command_.twist.angular.z = 0;
           // Publish to arduino
+                pub_control_commands_.publish(control_command_);
+          // Servo release
                 if (servo_release){
-// ros serial to release servo latch
+          // ros serial to release servo latch
 
                 }
        }
