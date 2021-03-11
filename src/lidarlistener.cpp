@@ -52,7 +52,8 @@ cv::Mat h_depth_cvmat_; // setting up cv matrix for depth
 float h_a_[10], h_b_[10]; //setting fourier coeffs
 cv::Mat h_nearness_; // setting up cv matrix for nearness
 float h_wf_r_cmd_;  // horizontal wide field yaw rate command
-geometry_msgs::TwistStamped control_command_; //setting up control command
+geometry_msgs::TwistStamped control_command_; //setting up control command msg
+geometry_msgs::TwistStamped servo_command_; // setting up servo command msg
 float h_dg_; //
 int total_h_scan_points_ = 360; //total number of points being sampled currently
 double h_sensor_max_dist_ = 12; //12 M
@@ -85,8 +86,7 @@ vector<float>  safety_boundary_;
 vector<float> box_index_;
 float num_indices_;
 
-//add controller gains
-
+//controller gains
     double r_k_hb_1_ = 2.0; //to start with for now
     double r_k_hb_2_ = 2.0; // =? //to start with for now
     double r_max_;  //=1;// //maximum turn value, determined through testing
@@ -105,9 +105,9 @@ void enableControlCallback(const std_msgs::BoolConstPtr& msg){
 void enableReverseCallback(const std_msgs::BoolConstPtr& msg){
   enable_reverse = msg->data;
 }
+// to enable in terminal, $ rostopic pub enable_reverse std_msgs/bool "true"
 
 //do we need a callback like this for boundary_stop, servo release, and servo attach?
-
 void enableBoundaryStopCallback(const std_msgs::BoolConstPtr& msg){
   boundary_stop = msg->data;
 }
@@ -121,7 +121,7 @@ void enableServoAttachCallback(const std_msgs::BoolConstPtr& msg){
 }
 
 
-//callback for the lidar scan, will clear and refresh scan vector called scan_ranges
+//callback function for the lidar scan, will clear and refresh scan vector called scan_ranges
 void scanCallback(const sensor_msgs::LaserScan::ConstPtr& scan)
 {
     int count = scan->scan_time / scan->time_increment;
@@ -135,9 +135,6 @@ void scanCallback(const sensor_msgs::LaserScan::ConstPtr& scan)
     }
 }
 //end call backs ********************************************************
-
-
-
 
 
 // safety box stuff: expects a scan 0-2pi from due right (0deg) CCW to create safety box and compare to
@@ -279,7 +276,10 @@ checkSafetyBox(scan_ranges); //is this the right input arguement
 
 //manual TDR wire re-attachment to servo 
     if(servo_attach){
+        servo_command_.twist.linear.x = -1; //what does this value need to be?
         //rosserial to close servo 
+        pub_servo_attach_.publish(servo_command_);
+
 }
 
 // Convert incoming scan to cv matrix and reformat**************************
@@ -439,7 +439,9 @@ checkSafetyBox(scan_ranges); //is this the right input arguement
                 pub_control_commands_.publish(control_command_);
           // Servo release
                 if (servo_release){
-          // ros serial to release servo latch
+                servo_command_.twist.linear.x = 1; // what does this value need to be for arduino?
+           // Publish to arduino
+                pub_servo_release_.publish(servo_command_);
 
                 }
        }
