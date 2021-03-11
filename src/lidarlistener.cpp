@@ -47,34 +47,23 @@ using namespace std;
 //define global variables**********************
 
 #define RAD2DEG(x) ((x)*180./M_PI)
-int h_num_fourier_terms_;
-cv::Mat h_depth_cvmat_; 
-float h_a_[10], h_b_[10];
-cv::Mat h_nearness_;
-float h_wf_r_cmd_;
-geometry_msgs::TwistStamped control_command_;
-float h_dg_;
-<<<<<<< Updated upstream
-int total_h_scan_points_ = 360; //double check, use this for now
-double h_sensor_max_dist_ = 12; //12 meters, not sure if should equal 6 though
-double h_sensor_min_dist_ = 0.15; //15 cm I believe (doublecheck)
-double h_scan_limit_ = 10; //what is this? chose 10 randomly for now
-float h_nearness_maxval_;
-=======
-int total_h_scan_points_ = 360; 
+int h_num_fourier_terms_; //
+cv::Mat h_depth_cvmat_; // setting up cv matrix for depth
+float h_a_[10], h_b_[10]; //setting fourier coeffs
+cv::Mat h_nearness_; // setting up cv matrix for nearness
+float h_wf_r_cmd_;  // horizontal wide field yaw rate command
+geometry_msgs::TwistStamped control_command_; //setting up control command
+float h_dg_; //
+int total_h_scan_points_ = 360; //total number of points being sampled currently
 double h_sensor_max_dist_ = 12; //12 M
 double h_sensor_min_dist_ = 0.15; //15 cm 
 double h_scan_limit_ = 3.14; 
 float h_nearness_maxval_; // =?
->>>>>>> Stashed changes
-
 vector<float> h_gamma_vector_;
-bool enable_control;
-bool enable_reverse;
-<<<<<<< Updated upstream
-=======
-bool servo_release = false;
->>>>>>> Stashed changes
+bool enable_control;  // set up control (on = true, off = false)
+bool enable_reverse;  //set up reverse (on = true, off = false)
+bool servo_release ; // set up servo release (open = true, closed = false)
+bool servo_attach ;
 vector<float> scan_ranges;
 
 // Generate the horizontal gamma vector  also replaced num_h_scan_points_ with total_h_scan_points
@@ -82,7 +71,7 @@ void horizGammaVector(){
     for(int i=0; i<total_h_scan_points_; i++){
         h_gamma_vector_.push_back((float(i)/float(total_h_scan_points_))*(2*h_scan_limit_) - h_scan_limit_);
     }
-    h_dg_ = (2.0*h_scan_limit_)/total_h_scan_points_;
+    h_dg_ = (2.0*h_scan_limit_)/total_h_scan_points_; //degree increment
 }
 
 //Safety box stuff
@@ -97,19 +86,6 @@ vector<float> box_index_;
 float num_indices_;
 
 //add controller gains
-<<<<<<< Updated upstream
-    double u_k_hb_1_; // =? //to start with for now
-    double u_k_hb_2_; // =? //to start with for now
-    double u_k_ha_1_; // =? //to start with for now
-    double u_k_ha_2_; // =? //to start with for now
-    double r_k_hb_1_; // =? //to start with for now
-    double r_k_hb_2_; // =? //to start with for now
-    double r_k_vb_1_; // =? //to start with for now
-    double r_k_vb_2_; // =? //to start with for now
-    double r_max_;
-    double u_cmd_ = 1;
-    
-=======
 
     double r_k_hb_1_ = 2.0; //to start with for now
     double r_k_hb_2_ = 2.0; // =? //to start with for now
@@ -117,16 +93,12 @@ float num_indices_;
     double r_max_;  //=1;// //maximum turn value, determined through testing
     double u_cmd_ = 60; //forward speed command, determine during testing
     double rev_u_cmd_ = -u_cmd_;  //reverse speed command
->>>>>>> Stashed changes
 
 
 //Callbacks*****************************************************
 //callback for enable control
 void enableControlCallback(const std_msgs::BoolConstPtr& msg){
   enable_control = msg->data;
-}
-void enableReverseCallback(const std_msgs::BoolConstPtr& msg){
-  enable_reverse = msg->data;
 }
 // to enable in terminal, $ rostopic pub enable_control std_msgs/bool "true"
 
@@ -135,12 +107,22 @@ void enableReverseCallback(const std_msgs::BoolConstPtr& msg){
   enable_reverse = msg->data;
 }
 
-//do we need a callback like this for boundary_stop?
-/*
+//do we need a callback like this for boundary_stop, servo release, and servo attach?
+
 void enableBoundaryStopCallback(const std_msgs::BoolConstPtr& msg){
   boundary_stop = msg->data;
 }
-*/
+
+
+void enableServoReleaseCallback(const std_msgs::BoolConstPtr& msg){
+  servo_release = msg->data;
+}
+
+
+void enableServoAttachCallback(const std_msgs::BoolConstPtr& msg){
+  servo_attach = msg->data;
+}
+
 
 
 //callback for the lidar scan, will clear and refresh scan vector called scan_ranges
@@ -250,37 +232,57 @@ int main(int argc, char **argv)
 //Subscribers Setup**********************************************
 //ros subscribers to laserscan
     ros::Subscriber sub_laserscan = n.subscribe("/scan", 1000, scanCallback);
+
 //ros subscriber to enable control 
     ros::Subscriber sub_enable_control = n.subscribe("/enable_control", 1, enableControlCallback);
     enable_control = false;
+
 //ros subscriber to enable reverse
     ros::Subscriber sub_enable_reverse = n.subscribe("/enable_reverse", 1, enableReverseCallback);
     enable_reverse = false;
-<<<<<<< Updated upstream
-=======
-//is a subscriber needed for safety box stop?
-/*
+
+//is a subscriber needed for safety box stop, servo release, servo attach ?
+
     ros::Subscriber sub_boundary_stop = n.subscribe("/boundary_stop", 1, enableBoundaryStopCallback);
     boundary_stop = false;
-*/
 
->>>>>>> Stashed changes
+
+    ros::Subscriber sub_servo_release = n.subscribe("/servo_release", 1, enableServoReleaseCallback);
+    servo_release = false;
+
+    ros::Subscriber sub_servo_attach = n.subscribe("/servo_attach", 1, enableServoAttachCallback);
+    servo_attach = false;
+
 //any other subscribers needed? (besides arduino rosserial)
 //***************************************************************
 
 //publishers set up**********************************************
 // changed all "nh_." to "n." , runs now, is this okay?
   ros::Publisher pub_h_scan_nearness_ = n.advertise<std_msgs::Float32MultiArray>("horiz_nearness", 10);
+
   ros::Publisher pub_h_recon_wf_nearness_ = n.advertise<std_msgs::Float32MultiArray>("horiz_recon_wf_nearness", 10);
+
   ros::Publisher pub_h_fourier_coefficients_ = n.advertise<nearness_control_msgs::FourierCoefsMsg>("horiz_fourier_coefficients", 10);  
+
 ros::Publisher pub_control_commands_stamped_ = n.advertise<geometry_msgs::TwistStamped>("control_commands_stamped", 10); 
+
  ros::Publisher pub_control_commands_ = n.advertise<geometry_msgs::Twist>("control_commands", 10);
 
+
+// publishers for servo release and reattach
+ ros::Publisher pub_servo_release_ = n.advertise<geometry_msgs::Twist>("servo_release_cmd", 10);
+
+ ros::Publisher pub_servo_attach_ = n.advertise<geometry_msgs::Twist>("servo_attach_cmd", 10);
 //***************************************************************
 
 // While loop to start converting/calculating and pushing control commands
 
  while(ros::ok()){
+
+//manual TDR wire re-attachment to servo 
+    if(servo_attach){
+        //rosserial to close servo 
+}
 
 // Convert incoming scan to cv matrix and reformat**************************
  vector<float> h_depth_vector = scan_ranges; 
@@ -386,10 +388,6 @@ ros::Publisher pub_control_commands_stamped_ = n.advertise<geometry_msgs::TwistS
 // End Generate control commands********************************************   
 
 
-<<<<<<< Updated upstream
-// Determine motion state ( safety box stuff, add in when code is more developed)
-// End Generate control commands********************************************   
-=======
 // when boundary_stop is set to true, set enable_control to false 
 
         if(boundary_stop){
@@ -399,7 +397,6 @@ ros::Publisher pub_control_commands_stamped_ = n.advertise<geometry_msgs::TwistS
 }
 
 //End safety boundary/end boundary
->>>>>>> Stashed changes
 
 
 // If statement for enable control ******************************
@@ -420,10 +417,6 @@ ros::Publisher pub_control_commands_stamped_ = n.advertise<geometry_msgs::TwistS
         
         else if(enable_reverse){
 
-<<<<<<< Updated upstream
-
-}
-=======
     double rev_h_wf_r_cmd_ = -h_wf_r_cmd_;
 
                 control_command_.twist.linear.x = rev_u_cmd_;
@@ -431,10 +424,11 @@ ros::Publisher pub_control_commands_stamped_ = n.advertise<geometry_msgs::TwistS
                 control_command_.twist.linear.z = 0;
                 control_command_.twist.angular.z = rev_h_wf_r_cmd_;
 
+ //Publishing to arduino
+
 }
         
 
->>>>>>> Stashed changes
         else {
            // Publish zeros with rosserial
            //set commands to zero
@@ -443,13 +437,10 @@ ros::Publisher pub_control_commands_stamped_ = n.advertise<geometry_msgs::TwistS
                 control_command_.twist.linear.z = 0;
                 control_command_.twist.angular.z = 0;
           // Publish to arduino
-<<<<<<< Updated upstream
-
-=======
                 if (servo_release){
 // ros serial to release servo latch
+
                 }
->>>>>>> Stashed changes
        }
 
 
