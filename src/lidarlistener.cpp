@@ -89,7 +89,6 @@ float num_indices_;
 
     double r_k_hb_1_ = 2.0; //to start with for now
     double r_k_hb_2_ = 2.0; // =? //to start with for now
-
     double r_max_;  //=1;// //maximum turn value, determined through testing
     double u_cmd_ = 60; //forward speed command, determine during testing
     double rev_u_cmd_ = -u_cmd_;  //reverse speed command
@@ -113,16 +112,13 @@ void enableBoundaryStopCallback(const std_msgs::BoolConstPtr& msg){
   boundary_stop = msg->data;
 }
 
-
 void enableServoReleaseCallback(const std_msgs::BoolConstPtr& msg){
   servo_release = msg->data;
 }
 
-
 void enableServoAttachCallback(const std_msgs::BoolConstPtr& msg){
   servo_attach = msg->data;
 }
-
 
 
 //callback for the lidar scan, will clear and refresh scan vector called scan_ranges
@@ -150,9 +146,7 @@ void generateSafetyBox(){  // creates a safety box around the vehicle
   // polar format: 0-2pi in degrees with corresponding radius: safety_boundary
   // Box is rectangular in the rear, front is semiciricular
   // Radius is just above the minimum sensing distance of lidar in front 15+3cm
-  
     // ("Generating safety box."); // print with ROS_INFO
-    
     // Generate the left boundary
     for(int i = 0; i < total_h_scan_points_; i++){
 
@@ -215,10 +209,7 @@ void checkSafetyBox(std::vector<float> scan_ranges){
       boundary_stop = true;
     }
 } 
-
-
 // end safetybox *********************************************************
-
 
 
 
