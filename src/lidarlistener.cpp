@@ -437,13 +437,11 @@ checkSafetyBox(scan_ranges); //is this the right input arguement
                 control_command_.twist.angular.z = 0;
           // Publish to arduino
                 pub_control_commands_.publish(control_command_);
-          // Servo release
-                if (servo_release){
-                servo_command_.twist.linear.x = 1; // what does this value need to be for arduino?
+
            // Publish to arduino
                 pub_servo_release_.publish(servo_command_);
 
-                }
+                
        }
 
 
