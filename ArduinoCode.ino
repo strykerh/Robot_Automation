@@ -67,6 +67,18 @@ ros::Subscriber<std_msgs::Bool> enable_Reverse("enable_reverse", &enableReverseC
 ros::Subscriber<std_msgs::Bool> servo_Attach("servo_attach", &servoAttachCb );
 ros::Subscriber<std_msgs::Bool> servo_Release("servo_release", &servoReleaseCb );
 
+
+float sat(float num, float min_val, float max_val){
+   if (num >= max_val){
+        return max_val;
+    } else if (num <= min_val){
+        return min_val;
+    } else {
+      return num;
+    }
+}
+
+
 void setup() {
   myservo.attach(9);
   Serial.begin(9600);      // Set your Serial Monitor is set at 250000
@@ -92,7 +104,8 @@ void setup() {
 }
 void loop() {
   
-    geometry_msgs::Twist msg;
+   geometry_msgs::Twist msg;
+   
     //msg = incoming_value;
 
 //Dabble.processInput();             //this function is used to refresh data obtained from smartphone.Hence calling this function is mandatory in order to get data properly from your mobile.
@@ -102,19 +115,24 @@ void loop() {
     //incoming_value = Terminal.read();   // //Read the incoming data and store it into variable Incoming_value
     //Serial.print(incoming_value);
     
+    float sat_u_cmd = sat(0,120,u_cmd);
+    float sat_h_wf_r_cmd = sat(0,10,h_wf_r_cmd);
+    
+   float val1 = sat_u_cmd - sat_h_wf_r_cmd;
+   float val2 = -sat_u_cmd + sat_h_wf_r_cmd;
     
     if(enableControl == true)
      {
        //Terminal.print(incoming_value);
-       roboclaw.ForwardM1(address,u_cmd); 
-       roboclaw.ForwardM2(address,u_cmd + h_wf_r_cmd); 
+       roboclaw.ForwardM1(address, val1); 
+       roboclaw.ForwardM2(address, val2); 
       }
 
       
     else if (enableReverse == true)
     {
-      roboclaw.BackwardM1(address,-u_cmd);
-      roboclaw.BackwardM2(address,-u_cmd - h_wf_r_cmd);
+      roboclaw.BackwardM1(address, -val1);
+      roboclaw.BackwardM2(address,-val2);
     }
 
    
