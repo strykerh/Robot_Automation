@@ -1,6 +1,4 @@
-#define CUSTOM_SETTINGS
-#define INCLUDE_TERMINAL_MODULE
-#define INCLUDE_GAMEPAD_MODULE
+
 
 #include <ros.h>
 //#include <Dabble.h>
@@ -16,7 +14,7 @@
 Servo myservo;
 int pos = 90;
 int pos1 = 0;
-float incoming_value;
+//float incoming_value;
 bool enableControl;
 bool enableReverse;
 bool servoAttach;
@@ -131,12 +129,12 @@ void loop() {
       
     else if (enableReverse == true)
     {
-      roboclaw.BackwardM1(address, -val1);
-      roboclaw.BackwardM2(address,-val2);
+      roboclaw.BackwardM1(address, val1);
+      roboclaw.BackwardM2(address,val2);
     }
 
    
-//    if (servoAttach == true)
+// if (servoAttach == true)
 //    {
 //      myservo.attach(9);
 //      for (pos = 90; pos >= 1; pos -= 1) { // goes from 0 degrees to 180 degrees
@@ -144,15 +142,16 @@ void loop() {
 //     myservo.write(pos);              // tell servo to go to position in variable 'pos'
 //      delay(20);
 //      }  
-//    
+    
 
-    if (servoAttach == true)
+    else if (servoAttach == true)
     { 
       myservo.attach(9);
+      servoAttach == false;
       for (pos1 = 0; pos1 < 90; pos1 += 1) { // goes from 0 degrees to 180 degrees
     // in steps of 1 degree
      myservo.write(pos1);              // tell servo to go to position in variable 'pos'
-      delay(20);
+      delay(1);
       }
     }
 
@@ -163,7 +162,7 @@ void loop() {
 //        roboclaw.ForwardM1(address,0);
 //        roboclaw.ForwardM2(address,0); 
 //      }
-//  
+  
 
   else if (servoRelease == true )
   {
