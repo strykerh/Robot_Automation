@@ -99,7 +99,7 @@ float num_indices_;
 void enableControlCallback(const std_msgs::BoolConstPtr& msg){
   enable_control = msg->data;
 }
-// to enable in terminal, $ rostopic pub enable_control std_msgs/bool "true"
+// to enable in terminal, $ rostopic pub enable_control std_msgs/Bool 'true'
 
 //callback for reverse control
 void enableReverseCallback(const std_msgs::BoolConstPtr& msg){
