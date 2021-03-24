@@ -1,7 +1,13 @@
-
-
+ 
+#define CUSTOM_SETTINGS
+#define INCLUDE_TERMINAL_MODULE
 #include <ros.h>
 //#include <Dabble.h>
+#if ARDUINO >= 100
+#include "Arduino.h"
+#else
+#include "WProgram.h"
+#endif
 #include <SoftwareSerial.h>
 #include "RoboClaw.h"
 
@@ -14,7 +20,7 @@
 Servo myservo;
 int pos = 90;
 int pos1 = 0;
-//float incoming_value;
+bool incoming_value;
 bool enableControl;
 bool enableReverse;
 bool servoAttach;
@@ -30,7 +36,7 @@ RoboClaw roboclaw(&serial,10000);
 //line 30
 #define address 0x80
 
-ros::NodeHandle nh;
+ros::NodeHandle n;
 
 void messageCb(const geometry_msgs::Twist& msg){
  u_cmd = msg.linear.x;
@@ -78,101 +84,101 @@ float sat(float num, float min_val, float max_val){
 
 
 void setup() {
-  myservo.attach(9);
+  //myservo.attach(9);
   Serial.begin(9600);      // Set your Serial Monitor is set at 250000
   //Dabble.begin(9600);      // This is the baude rate of the HM-10
   roboclaw.begin(38400);
   
-  nh.initNode();
-  nh.subscribe(sub);
+  n.initNode();
+  n.subscribe(sub);
   
-  nh.initNode();
-  nh.subscribe(enable_Control);
+  n.initNode();
+  n.subscribe(enable_Control);
   
-  nh.initNode();
-  nh.subscribe(enable_Reverse);
+  n.initNode();
+  n.subscribe(enable_Reverse);
   
-  nh.initNode();
-  nh.subscribe(servo_Attach);
+  n.initNode();
+  n.subscribe(servo_Attach);
   
-  nh.initNode();
-  nh.subscribe(servo_Release);
+  n.initNode();
+  n.subscribe(servo_Release);
   
   
 }
 void loop() {
-  
+   
+
    geometry_msgs::Twist msg;
+   std_msgs::Bool msgs;
+
    
     //msg = incoming_value;
 
+
 //Dabble.processInput();             //this function is used to refresh data obtained from smartphone.Hence calling this function is mandatory in order to get data properly from your mobile.
   
-  //if(Terminal.available())
-  //{
-    //incoming_value = Terminal.read();   // //Read the incoming data and store it into variable Incoming_value
-    //Serial.print(incoming_value);
+ if(Serial.available())
+  {
+    incoming_value = Serial.read();   // //Read the incoming data and store it into variable Incoming_value
+  
+    Serial.print(incoming_value);
     
     float sat_u_cmd = sat(0,120,u_cmd);
     float sat_h_wf_r_cmd = sat(0,10,h_wf_r_cmd);
     
-   float val1 = sat_u_cmd - sat_h_wf_r_cmd;
-   float val2 = -sat_u_cmd + sat_h_wf_r_cmd;
+    float val1 = sat_u_cmd - sat_h_wf_r_cmd;
+    float val2 = -sat_u_cmd + sat_h_wf_r_cmd;
     
-    if(enableControl == true)
-     {
-       //Terminal.print(incoming_value);
-       roboclaw.ForwardM1(address, val1); 
-       roboclaw.ForwardM2(address, val2); 
-      }
+        if(enableControl == true)
+            {
+             Serial.print("Forward");
+             roboclaw.ForwardM1(address, val1); 
+             roboclaw.ForwardM2(address, val2); 
+      
+               if (servoAttach)
+                { 
+                myservo.attach(9);
+              //servoAttach == false;
+                   for (pos1 = 0; pos1 < 90; pos1 += 1) { // goes from 0 degrees to 180 degrees
+                  // in steps of 1 degree
+                  myservo.write(pos1);              // tell servo to go to position in variable 'pos'
+                  delay(1);
+                     }
+                }
+               else if (servoRelease )
+                {
+                //servoRelease == false;
+                myservo.detach(); 
+               }
+               else
+                {
+              myservo.detach();
+          
+                 }
+        
+           }
 
       
-    else if (enableReverse == true)
+  else if (enableReverse == true )
     {
+      Serial.print("Backward");
       roboclaw.BackwardM1(address, val1);
       roboclaw.BackwardM2(address,val2);
+      myservo.detach();
     }
 
-   
-// if (servoAttach == true)
-//    {
-//      myservo.attach(9);
-//      for (pos = 90; pos >= 1; pos -= 1) { // goes from 0 degrees to 180 degrees
-//    // in steps of 1 degree
-//     myservo.write(pos);              // tell servo to go to position in variable 'pos'
-//      delay(20);
-//      }  
+  else
+   {
+    Serial.print("Stop");
+    roboclaw.ForwardM1(address, 0); 
+    roboclaw.ForwardM2(address, 0);
+    myservo.detach();
+   }
     
 
-    else if (servoAttach == true)
-    { 
-      myservo.attach(9);
-      servoAttach == false;
-      for (pos1 = 0; pos1 < 90; pos1 += 1) { // goes from 0 degrees to 180 degrees
-    // in steps of 1 degree
-     myservo.write(pos1);              // tell servo to go to position in variable 'pos'
-      delay(1);
-      }
-    }
-
-    
-    
-//     else if ()
-//      {
-//        roboclaw.ForwardM1(address,0);
-//        roboclaw.ForwardM2(address,0); 
-//      }
-  
-
-  else if (servoRelease == true )
-  {
-  
-    myservo.detach(); 
   }
   
+   n.spinOnce();
 
-  
-  
-  nh.spinOnce();
-
-    }
+}
