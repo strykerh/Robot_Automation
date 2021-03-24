@@ -167,7 +167,7 @@ void generateSafetyBox(){  // creates a safety box around the vehicle
     safety_box_on = true;  // what is this for?  Could be used for errors in creating Box
   }
 
-void checkSafetyBox(std::vector<float> scan_ranges){
+void checkSafetyBox(std::vector<float> scan_ranges_reformatted){
   /*
   flag_too_close_front_ = false;?
   flag_too_close_left_ = false; already declared globally?
@@ -177,14 +177,14 @@ void checkSafetyBox(std::vector<float> scan_ranges){
   int right_ = 0;
   int rear_ = 0;
   for(int i = 0; i < total_h_scan_points_; i++){
-    if((scan_ranges[i] < safety_boundary_[i])){
+    if((scan_ranges_reformatted[i] < safety_boundary_[i])){
       box_index_.push_back(i);
     }
   }
   num_indices_ = box_index_.size();
   int num_ind = (int) num_indices_;//convert unsigned int to int
   if (num_ind == 0){
-    return ;
+    return;
         // cout << "No boundary violation" << endl; or equiv with ROS
   }
   else{
@@ -275,8 +275,6 @@ generateSafetyBox();
 
  while(ros::ok()){
 
-//call function for safety boundary check
-checkSafetyBox(scan_ranges); //is this the right input arguement
 
 //manual TDR wire re-attachment to servo
     if(servo_attach){
@@ -315,6 +313,9 @@ checkSafetyBox(scan_ranges); //is this the right input arguement
         }
 
         h_depth_vector = h_depth_vector_noinfs;
+     
+     
+     // REFORMAT SCAN (WITHOUT INFS) FOR SAFETY BOX CHECK  
         for (int i = 3*total_h_scan_points_/4; i < total_h_scan_points_; i++){
           h_depth_vector_reformat.push_back(h_depth_vector[i]);
 
@@ -322,7 +323,12 @@ checkSafetyBox(scan_ranges); //is this the right input arguement
         for (int i = 0; i < 3*total_h_scan_points_/4; i++){
           h_depth_vector_reformat.push_back(h_depth_vector[i]);
         } //now reformatted depth vector goes CW from due left with no inf depths
+     
+     //Publish reformatted scan
 
+//call function for safety boundary check
+checkSafetyBox(h_depth_vector_reformat); //is this the right input arguement
+     // moved this down because needed the NO INF part before reformat
 
 
  /* not included but option to...
