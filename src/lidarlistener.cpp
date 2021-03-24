@@ -47,21 +47,24 @@ using namespace std;
 //define global variables**********************
 
 #define RAD2DEG(x) ((x)*180./M_PI)
-int h_num_fourier_terms_;
-cv::Mat h_depth_cvmat_; // how do we get this to work? need cv namespace?
-float h_a_[10], h_b_[10];
-cv::Mat h_nearness_;
-float h_wf_r_cmd_;
-geometry_msgs::TwistStamped control_command_;
-//float h_dg_;
-int total_h_scan_points_ = 360; //double check, use this for now
-double h_sensor_max_dist_ = 12; //12 meters, not sure if should equal 6 though
-double h_sensor_min_dist_ = 0.15; //15 cm I believe (doublecheck)
-// double h_scan_limit_ = 10; //what is this? chose 10 randomly for now
-float h_nearness_maxval_;
-
+int h_num_fourier_terms_; //
+cv::Mat h_depth_cvmat_; // setting up cv matrix for depth
+float h_a_[10], h_b_[10]; //setting fourier coeffs
+cv::Mat h_nearness_; // setting up cv matrix for nearness
+float h_wf_r_cmd_;  // horizontal wide field yaw rate command
+geometry_msgs::TwistStamped control_command_; //setting up control command msg
+geometry_msgs::TwistStamped servo_command_; // setting up servo command msg
+float h_dg_; //
+int total_h_scan_points_ = 360; //total number of points being sampled currently
+double h_sensor_max_dist_ = 12; //12 M
+double h_sensor_min_dist_ = 0.15; //15 cm
+double h_scan_limit_ = 3.14;
+float h_nearness_maxval_; // =?
 vector<float> h_gamma_vector_;
-bool enable_control;
+bool enable_control;  // set up control (on = true, off = false)
+bool enable_reverse;  //set up reverse (on = true, off = false)
+bool servo_release ; // set up servo release (open = true, closed = false)
+bool servo_attach ;
 vector<float> scan_ranges;
 
 // Generate the horizontal gamma vector  also replaced num_h_scan_points_ with total_h_scan_points
@@ -69,7 +72,7 @@ void horizGammaVector(){
     for(int i=0; i<total_h_scan_points_; i++){
         h_gamma_vector_.push_back((float(i)/float(total_h_scan_points_))*(2*h_scan_limit_) - h_scan_limit_);
     }
-    h_dg_ = (2.0*h_scan_limit_)/total_h_scan_points_;
+    h_dg_ = (2.0*h_scan_limit_)/total_h_scan_points_; //degree increment
 }
 
 //Safety box stuff
@@ -79,27 +82,21 @@ bool boundary_stop = false;
 bool left_side_flag = false;
 bool right_side_flag = false;
 bool safety_box_on = false;
-float h_scan_limit_ = M_PI;
-float total_h_scan_points_ = 360;
-std::vector<float>  safety_boundary_;
-float h_dg_ = (2.0*h_scan_limit_)/total_h_scan_points_;
+vector<float>  safety_boundary_;
+vector<float> box_index_;
+float num_indices_;
+
+//reformat stuff
+vector<float> h_depth_vector_reformat;
 
 
-//add controller gains
-    double u_k_hb_1_; // =? //to start with for now
-    double u_k_hb_2_; // =? //to start with for now
-    double u_k_ha_1_; // =? //to start with for now
-    double u_k_ha_2_; // =? //to start with for now
-    double r_k_hb_1_; // =? //to start with for now
-    double r_k_hb_2_; // =? //to start with for now
-    double r_k_vb_1_; // =? //to start with for now
-    double r_k_vb_2_; // =? //to start with for now
-    double r_max_;   //maximum turn value, determined through testing
-    double u_cmd_ = 1; //forward speed command, determine during testing
+//controller gains
+    double r_k_hb_1_ = 2.0; //to start with for now
+    double r_k_hb_2_ = 2.0; // =? //to start with for now
+    double r_max_;  //=1;// //maximum turn value, determined through testing
+    double u_cmd_ = 60; //forward speed command, determine during testing
     double rev_u_cmd_ = -u_cmd_;  //reverse speed command
 
-//safety box stuff, will be used to indicate when vehicle should stop
-  
 
 //Callbacks*****************************************************
 //callback for enable control
@@ -107,96 +104,28 @@ void enableControlCallback(const std_msgs::BoolConstPtr& msg){
   enable_control = msg->data;
 }
 // to enable in terminal, $ rostopic pub enable_control std_msgs/bool "true"
-<<<<<<< Updated upstream
-=======
 
 //callback for reverse control
 void enableReverseCallback(const std_msgs::BoolConstPtr& msg){
   enable_reverse = msg->data;
 }
->>>>>>> Stashed changes
+// to enable in terminal, $ rostopic pub enable_reverse std_msgs/bool "true"
 
-//do we need a callback like this for boundary_stop?
-/*
+//do we need a callback like this for boundary_stop, servo release, and servo attach?
 void enableBoundaryStopCallback(const std_msgs::BoolConstPtr& msg){
   boundary_stop = msg->data;
 }
-*/
 
-// safety box stuff: expects a scan 0-2pi from due right (0deg) CCW to create safety box and compare to
+void enableServoReleaseCallback(const std_msgs::BoolConstPtr& msg){
+  servo_release = msg->data;
+}
 
-void generateSafetyBox(){  // creates a safety box around the vehicle
-  // polar format: 0-2pi in degrees with corresponding radius: safety_boundary
-  // Box is rectangular in the rear, front is semiciricular
-  // Radius is just above the minimum sensing distance of lidar in front 15+3cm
-  
-    // ("Generating safety box."); // print with ROS_INFO
-    
-    //bool safety_box_corner_switch = false;
-    // Generate the left boundary
-    for(int i = 0; i < total_h_scan_points_; i++){
+void enableServoAttachCallback(const std_msgs::BoolConstPtr& msg){
+  servo_attach = msg->data;
+}
 
-      if(h_dg_*i < h_scan_limit_ ){ //from 0-pi
-        safety_boundary_.push_back(radial_dist);
-      }
-      else if( ((h_dg_*i)-h_scan_limit_) < atan(r_dist/radial_dist) ){ //pi to back left corner
-        safety_boundary_.push_back(radial_dist/cos((h_dg_*i)-h_scan_limit_));
-      }
-      else if( ((h_dg_*i)-(1.5*h_scan_limit_)) < atan(radial_dist/r_dist)){ //back left to back right
-        safety_boundary_.push_back(r_dist/sin((h_dg_*i)-h_scan_limit_));
-      }
-      else{ //remaining, back right to 0
-        safety_boundary_.push_back(radial_dist/sin((h_dg_*i)-(1.5*h_scan_limit_)));
-      }
-    }
-    safety_box_on = true;
-  }
 
-void checkSafetyBox(std::vector<float> scan_ranges){
-  /*
-  flag_too_close_front_ = false;
-  flag_too_close_left_ = false; already declared globally
-  flag_too_close_right_ = false;
-  */
-  int left_ = 0;
-  int right_ = 0;
-  int rear_ = 0;
-  for(int i = 0; i < total_h_scan_points_; i++){
-    if((scan[i] < safety_boundary_[i]){
-      box_index_.push_back(i)
-    }
-  }
-  num_indices_ = box_index_.size();
-  int num_ind = (int) num_indices_;//convert unsigned int to int
-  if (num_ind == 0){
-    return 0;
-        // cout << "No boundary violation" << endl; or equiv with ROS
-  }
-  else(){
-    for(int i = 0; i < num_ind; i++){
-      if ((h_dg_*box_index_[i] < h_scan_limit/2)||(h_dg_*box_index_[i] >= (((3/2)*M_PI) + atan(radial_dist/r_dist)))){
-        right_++;
-      }
-      else if ((h_dg_*box_index_[i] >= h_scan_limit_/2 )&& (h_dg_*box_index_[i] < h_scan_limit_+ atan(r_dist/radial_dist))){
-        left_++;
-      }
-      else(){ // add front flag??
-        rear_++;
-      }
-    }
-  }
-    if(right_!=0){
-      right_side_flag = true;
-    }
-    if(left_!=0){
-      left_side_flag = true;
-    }
-    if(right_side_flag && left_side_flag){
-      boundary_stop = true;
-    }
-}  
-
-//callback for the lidar scan, will clear and refresh scan vector called scan_ranges
+//callback function for the lidar scan, will clear and refresh scan vector called scan_ranges
 void scanCallback(const sensor_msgs::LaserScan::ConstPtr& scan)
 {
     int count = scan->scan_time / scan->time_increment;
@@ -211,6 +140,80 @@ void scanCallback(const sensor_msgs::LaserScan::ConstPtr& scan)
 }
 //end call backs ********************************************************
 
+
+// safety box stuff: expects a scan 0-2pi from due right (0deg) CCW to create safety box and compare to
+
+void generateSafetyBox(){  // creates a safety box around the vehicle
+  // polar format: 0-2pi in degrees with corresponding radius: safety_boundary
+  // Box is rectangular in the rear, front is semiciricular
+  // Radius is just above the minimum sensing distance of lidar in front 15+3cm
+    // ("Generating safety box."); // print with ROS_INFO
+    // Generate the left boundary
+    for(int i = 0; i < total_h_scan_points_; i++){
+
+      if(h_dg_*i < h_scan_limit_ ){ //from 0-pi CW
+        safety_boundary_.push_back(radial_dist);
+      }
+      else if( h_dg_*i < h_scan_limit_ + atan(r_dist/radial_dist) ){ //pi to back right corner
+        safety_boundary_.push_back(radial_dist/cos((h_dg_*i)-h_scan_limit_));
+      }
+      else if( h_dg_*i < ((3*h_scan_limit_/2) +atan(radial_dist/r_dist))){ //back right to back left
+        safety_boundary_.push_back(r_dist/sin((h_dg_*i)-h_scan_limit_));
+      }
+      else{ //remaining, back left to 0 (due left)
+        safety_boundary_.push_back(radial_dist/sin((h_dg_*i)-(1.5*h_scan_limit_)));
+      }
+    }
+    safety_box_on = true;  // what is this for?  Could be used for errors in creating Box
+  }
+
+void checkSafetyBox(std::vector<float> scan_ranges){
+  /*
+  flag_too_close_front_ = false;?
+  flag_too_close_left_ = false; already declared globally?
+  flag_too_close_right_ = false;?
+  */
+  int left_ = 0;
+  int right_ = 0;
+  int rear_ = 0;
+  for(int i = 0; i < total_h_scan_points_; i++){
+    if((scan_ranges[i] < safety_boundary_[i])){
+      box_index_.push_back(i);
+    }
+  }
+  num_indices_ = box_index_.size();
+  int num_ind = (int) num_indices_;//convert unsigned int to int
+  if (num_ind == 0){
+    return ;
+        // cout << "No boundary violation" << endl; or equiv with ROS
+  }
+  else{
+    for(int i = 0; i < num_ind; i++){
+      if ((h_dg_*box_index_[i] < h_scan_limit_/2)||(h_dg_*box_index_[i] >= (((3/2)*M_PI) + atan(radial_dist/r_dist)))){
+        left_++;
+      }
+      else if ((h_dg_*box_index_[i] >= h_scan_limit_/2 )&& (h_dg_*box_index_[i] < h_scan_limit_+ atan(r_dist/radial_dist))){
+        right_++;
+      }
+      else { // add front flag??
+        rear_++;
+      }
+    }
+  }
+    if(right_!=0){
+      right_side_flag = true;
+    }
+    if(left_!=0){
+      left_side_flag = true;
+    }
+    if(right_side_flag && left_side_flag){
+      boundary_stop = true;
+    }
+}
+// end safetybox *********************************************************
+
+
+
 // Main begin ***********************************************************
 int main(int argc, char **argv)
 {
@@ -221,42 +224,72 @@ int main(int argc, char **argv)
 //Subscribers Setup**********************************************
 //ros subscribers to laserscan
     ros::Subscriber sub_laserscan = n.subscribe("/scan", 1000, scanCallback);
-//ros subscriber to enable control 
+
+//ros subscriber to enable control
     ros::Subscriber sub_enable_control = n.subscribe("/enable_control", 1, enableControlCallback);
     enable_control = false;
-<<<<<<< Updated upstream
-=======
+
 //ros subscriber to enable reverse
     ros::Subscriber sub_enable_reverse = n.subscribe("/enable_reverse", 1, enableReverseCallback);
     enable_reverse = false;
-//is a subscriber needed for safety box stop?
-/*
+
+//is a subscriber needed for safety box stop, servo release, servo attach ?
+
     ros::Subscriber sub_boundary_stop = n.subscribe("/boundary_stop", 1, enableBoundaryStopCallback);
     boundary_stop = false;
-*/
 
->>>>>>> Stashed changes
+
+    ros::Subscriber sub_servo_release = n.subscribe("/servo_release", 1, enableServoReleaseCallback);
+    servo_release = false;
+
+    ros::Subscriber sub_servo_attach = n.subscribe("/servo_attach", 1, enableServoAttachCallback);
+    servo_attach = false;
+
 //any other subscribers needed? (besides arduino rosserial)
 //***************************************************************
 
 //publishers set up**********************************************
 // changed all "nh_." to "n." , runs now, is this okay?
   ros::Publisher pub_h_scan_nearness_ = n.advertise<std_msgs::Float32MultiArray>("horiz_nearness", 10);
+
   ros::Publisher pub_h_recon_wf_nearness_ = n.advertise<std_msgs::Float32MultiArray>("horiz_recon_wf_nearness", 10);
-  ros::Publisher pub_h_fourier_coefficients_ = n.advertise<nearness_control_msgs::FourierCoefsMsg>("horiz_fourier_coefficients", 10);  
-ros::Publisher pub_control_commands_stamped_ = n.advertise<geometry_msgs::TwistStamped>("control_commands_stamped", 10); 
+
+  ros::Publisher pub_h_fourier_coefficients_ = n.advertise<nearness_control_msgs::FourierCoefsMsg>("horiz_fourier_coefficients", 10);
+
+ros::Publisher pub_control_commands_stamped_ = n.advertise<geometry_msgs::TwistStamped>("control_commands_stamped", 10);
+
  ros::Publisher pub_control_commands_ = n.advertise<geometry_msgs::Twist>("control_commands", 10);
 
+
+// publishers for servo release and reattach
+ ros::Publisher pub_servo_release_ = n.advertise<geometry_msgs::Twist>("servo_release_cmd", 10);
+
+ ros::Publisher pub_servo_attach_ = n.advertise<geometry_msgs::Twist>("servo_attach_cmd", 10);
 //***************************************************************
+
+//call generate safety box function
+generateSafetyBox();
+
 
 // While loop to start converting/calculating and pushing control commands
 
  while(ros::ok()){
 
+//call function for safety boundary check
+checkSafetyBox(scan_ranges); //is this the right input arguement
+
+//manual TDR wire re-attachment to servo
+    if(servo_attach){
+        servo_command_.twist.linear.x = -1; //what does this value need to be?
+        //rosserial to close servo
+        pub_servo_attach_.publish(servo_command_);
+
+}
+
 // Convert incoming scan to cv matrix and reformat**************************
- vector<float> h_depth_vector = scan_ranges; 
+ vector<float> h_depth_vector = scan_ranges;
  vector<float> h_depth_vector_noinfs = h_depth_vector;
- 
+
     // handle infs due to sensor max distance (find total scan points)
     for(int i = 0; i<total_h_scan_points_; i++){
         if(isinf(h_depth_vector[i])){
@@ -280,21 +313,29 @@ ros::Publisher pub_control_commands_stamped_ = n.advertise<geometry_msgs::TwistS
                 }
             }
         }
+
         h_depth_vector = h_depth_vector_noinfs;
-    
- 
+        for (int i = 3*total_h_scan_points_/4; i < total_h_scan_points_; i++){
+          h_depth_vector_reformat.push_back(h_depth_vector[i]);
+
+        }
+        for (int i = 0; i < 3*total_h_scan_points_/4; i++){
+          h_depth_vector_reformat.push_back(h_depth_vector[i]);
+        } //now reformatted depth vector goes CW from due left with no inf depths
+
+
+
+ /* not included but option to...
  // Reformat the depth scan depending on the orientation of the scanner
     // scan_start_loc describes the location of the first scan index
 // Reformat the depth scan depending on the orientation of the scanner
     // scan_start_loc describes the location of the first scan index
-
-
  // Trim the scan down if the entire scan is not being used
-
+*/
 
 // Publish the reformatted scan
 
-// Last, convert to cvmat and saturate 
+// Last, convert to cvmat and saturate
 
     h_depth_cvmat_ = cv::Mat(1,total_h_scan_points_, CV_32FC1);
 
@@ -341,13 +382,13 @@ ros::Publisher pub_control_commands_stamped_ = n.advertise<geometry_msgs::TwistS
         h_fourier_coefs_msg.b = h_b_vector;
 
         pub_h_fourier_coefficients_.publish(h_fourier_coefs_msg);
-} 
+}
 // End of computeHorizFourierCoeffs******************************************
 
-// Generate WF control commands*******************************************        
+// Generate WF control commands*******************************************
 {
     h_wf_r_cmd_ = r_k_hb_1_*h_b_[1] + r_k_hb_2_*h_b_[2];
-    
+
     // Saturate the wide field yaw rate command
     if(h_wf_r_cmd_ < -r_max_) {
         h_wf_r_cmd_ = -r_max_;
@@ -356,42 +397,16 @@ ros::Publisher pub_control_commands_stamped_ = n.advertise<geometry_msgs::TwistS
     }
 
 }
-// End Generate control commands********************************************   
+// End Generate control commands********************************************
 
-// Begin Safety boundary/ end boundary *****************************
-generateSafetyBox();
-if(safety_box_on){
- checkSafetyBox(scan_ranges);
-}
-else(){
- // output error in safety box creation
-}
-if(boundary_stop){
-  enable_control = false;
-}
-/*
-//look at left side of vehicle scan( if any value in this portion of the scan vector  =0.15, set left side flag to true)
-// trim to left side of scan_ranges, eg  scan_ranges(180:270)
-        vector<float> left_range = scan_ranges(180:270)
-        if( left_range has any value = to 0.15){
-            left_side_flag = true;
-}
-//look at right side of vehicle scan( if any value in this portion of the scan vector  =0.15, set right side flag to true)
-// trim to right side of scan_ranges, eg  scan_ranges(90:180)
-        vector<float> right_range = scan_ranges(90:180)
-        if( right_range has any value = to 0.15){
-            right_side_flag = true;
-}
-//if left side flag and right side flag are true, then set boundary_stop to true
-        if (left_side_flag && right_side_flag){
-            boundary_stop = true;
-}
-*/
-// when boundary_stop is set to true, set enable_control to false 
 
-      //  if(boundary_stop){
-      //      enable_control = false;
-//}
+// when boundary_stop is set to true, set enable_control to false
+
+        if(boundary_stop){
+            enable_control = false;
+            servo_release = true;
+
+}
 
 //End safety boundary/end boundary
 
@@ -407,16 +422,12 @@ if(boundary_stop){
                 control_command_.twist.angular.z = h_wf_r_cmd_;
 
                 //Publishing to arduino
+                pub_control_commands_.publish(control_command_);
 
 
-<<<<<<< Updated upstream
-
-// Else for zeros to control command ****************************
-       } else {
-=======
 }
 // Else for zeros to control command ****************************
-        
+
         else if(enable_reverse){
 
     double rev_h_wf_r_cmd_ = -h_wf_r_cmd_;
@@ -426,11 +437,12 @@ if(boundary_stop){
                 control_command_.twist.linear.z = 0;
                 control_command_.twist.angular.z = rev_h_wf_r_cmd_;
 
+ //Publishing to arduino
+                pub_control_commands_.publish(control_command_);
 }
-        
+
 
         else {
->>>>>>> Stashed changes
            // Publish zeros with rosserial
            //set commands to zero
                 control_command_.twist.linear.x = 0;
@@ -438,6 +450,11 @@ if(boundary_stop){
                 control_command_.twist.linear.z = 0;
                 control_command_.twist.angular.z = 0;
           // Publish to arduino
+                pub_control_commands_.publish(control_command_);
+
+           // Publish to arduino
+                pub_servo_release_.publish(servo_command_);
+
 
        }
 
