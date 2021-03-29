@@ -315,8 +315,8 @@ while(ros::ok()){
         }
     }
     h_depth_vector = h_depth_vector_noinfs;
-    ROS_INFO("Test11");
-    /*
+   
+    
 
     reformat scan
     for (int i = 3*total_h_scan_points_/4; i < total_h_scan_points_; i++){
@@ -378,24 +378,30 @@ while(ros::ok()){
         h_fourier_coefs_msg.header.stamp = ros::Time::now();
         h_fourier_coefs_msg.a = h_a_vector;
         h_fourier_coefs_msg.b = h_b_vector;
-
+        ROS_INFO_THROTTLE(1.0,"a: %d", h_a_vector);
         pub_h_fourier_coefficients_.publish(h_fourier_coefs_msg);
+
 
 	// End of computeHorizFourierCoeffs******************************************
 
 	// Generate WF control commands*******************************************        
     h_wf_r_cmd_ = r_k_hb_1_*h_b_[1] + r_k_hb_2_*h_b_[2];
+    ROS_INFO_THROTTLE(1.0,"r_k: %d", r_k_hb_1_,);
+    ROS_INFO_THROTTLE(1.0,"h_wf: %d", h_wf_r_cmd);
+   // ROS_INFO("Test11");
     
     // Saturate the wide field yaw rate command
-    if(h_wf_r_cmd_ < -r_max_) {
+    if(h_wf_r_cmd_ <= -r_max_) {
+        ROS_INFO("Test12");
         h_wf_r_cmd_ = -r_max_;
     } else if(h_wf_r_cmd_ > r_max_) {
+        ROS_INFO("Test13");
         h_wf_r_cmd_ = r_max_;
     }
 
     // End Generate control commands********************************************   
-
-
+        
+/*
     // when boundary_stop is set to true, set enable_control to false 
 
         if(boundary_stop){
@@ -458,7 +464,7 @@ while(ros::ok()){
  //check callbacks once
       //  ros::spinOnce();
 
-*/
+
 
     } // End of if(have_scan)
   ros::spinOnce();
