@@ -65,7 +65,7 @@ bool enable_reverse;  //set up reverse (on = true, off = false)
 bool servo_release ; // set up servo release (open = true, closed = false)
 bool servo_attach ;
 vector<float> scan_ranges;
-bool have_scan = true ;
+bool have_scan = false ;
 
 // Generate the horizontal gamma vector  also replaced num_h_scan_points_ with total_h_scan_points
 void horizGammaVector(){
@@ -140,7 +140,7 @@ void scanCallback(const sensor_msgs::LaserScan::ConstPtr& scan)
     for(int i = 0; i < count; i++) {
         scan_ranges.push_back(scan->ranges[i]);
         float degree = RAD2DEG(scan->angle_min + scan->angle_increment * i);
-        ROS_INFO(": [%f, %f]", degree, scan->ranges[i]);
+        //ROS_INFO(": [%f, %f]", degree, scan->ranges[i]);
     }
 }
 //end call backs ********************************************************
@@ -279,32 +279,27 @@ ros::Publisher pub_control_commands_stamped_ = n.advertise<geometry_msgs::TwistS
 
 // While loop to start converting/calculating and pushing control commands
 
- while(ros::ok()){
+while(ros::ok()){
 //if have scan
-if (have_scan) {
+  ROS_INFO_THROTTLE(1.0,"have_scan: %d", have_scan);
+  if (have_scan) {
+  //manual TDR wire re-attachment to servo 
 
-//manual TDR wire re-attachment to servo 
-
-// Convert incoming scan to cv matrix and reformat**************************
- vector<float> h_depth_vector = scan_ranges; 
- vector<float> h_depth_vector_noinfs = h_depth_vector;
- ROS_INFO(": [%f %f]", h_depth_vector);
-    ROS_INFO("Test4");
+  // Convert incoming scan to cv matrix and reformat**************************
+  vector<float> h_depth_vector = scan_ranges; 
+  vector<float> h_depth_vector_noinfs = h_depth_vector;
+  //ROS_INFO(": [%f %f %f %f %f %f %f]", h_depth_vector);
+    int length = h_depth_vector.size();
     // handle infs due to sensor max distance (find total scan points)
-    for(int i = 0; i<total_h_scan_points_; i++){ROS_INFO("Test5");
+    for(int i = 0; i<total_h_scan_points_; i++){
         if(isinf(h_depth_vector[i])){
-    ROS_INFO("Test6");
             if(i == 0){
- ROS_INFO("Test7");
                 if(isinf(h_depth_vector[i+1])){
- ROS_INFO("Test8");
                     h_depth_vector_noinfs[i] = h_sensor_max_dist_;
-    ROS_INFO("Test9");
                 } else {
                     h_depth_vector_noinfs[i] = h_depth_vector[i+1];
                 }
             } else if(i == total_h_scan_points_){
-    ROS_INFO("Test10");
                 if(isinf(h_depth_vector[i-1])){
                     h_depth_vector_noinfs[i] = h_sensor_max_dist_;
                 } else {
@@ -318,25 +313,27 @@ if (have_scan) {
                 }
             }
         }
-        h_depth_vector = h_depth_vector_noinfs;
-    
+    }
+    h_depth_vector = h_depth_vector_noinfs;
+    ROS_INFO("Test11");
+    /*
 
- /* reformat scan
-for (int i = 3*total_h_scan_points_/4; i < total_h_scan_points_; i++){
+    reformat scan
+    for (int i = 3*total_h_scan_points_/4; i < total_h_scan_points_; i++){
           h_depth_vector_reformat.push_back(h_depth_vector[i]);
 
         }
         for (int i = 0; i < 3*total_h_scan_points_/4; i++){
           h_depth_vector_reformat.push_back(h_depth_vector[i]);
         } //now reformatted depth vector goes CW from due left with no inf depths
-*/
 
-//call function for safety boundary check
-//checkSafetyBox(h_depth_vector_reformat); //is this the right input arguement
 
-// Publish the reformatted scan
+   //call function for safety boundary check
+   //checkSafetyBox(h_depth_vector_reformat); //is this the right input arguement
 
-// Last, convert to cvmat and saturate 
+   // Publish the reformatted scan
+
+   // Last, convert to cvmat and saturate 
 
     h_depth_cvmat_ = cv::Mat(1,total_h_scan_points_, CV_32FC1);
 
@@ -344,25 +341,25 @@ for (int i = 3*total_h_scan_points_/4; i < total_h_scan_points_; i++){
     h_depth_cvmat_.setTo(h_sensor_min_dist_, h_depth_cvmat_ < h_sensor_min_dist_);
     h_depth_cvmat_.setTo(h_sensor_max_dist_, h_depth_cvmat_ > h_sensor_max_dist_);
 
-// END Convert incoming scan to cv matrix and reformat***************************
+    // END Convert incoming scan to cv matrix and reformat***************************
 
-// Compute the Fourier harmonics of the signal***********************************
+    // Compute the Fourier harmonics of the signal***********************************
 
-//computeHorizFourierCoeffs();
+    //computeHorizFourierCoeffs();
     float h_cos_gamma_arr[h_num_fourier_terms_ + 1][total_h_scan_points_];
     float h_sin_gamma_arr[h_num_fourier_terms_ + 1][total_h_scan_points_];
 
-// Compute horizontal nearness
+    // Compute horizontal nearness
     h_nearness_ = cv::Mat::zeros(cv::Size(1, total_h_scan_points_), CV_32FC1); //num_h_scan_points_ replaced with total_h_scan_points_
     h_nearness_ = 1.0/ h_depth_cvmat_;
     std::vector<float> h_nearness_array(h_nearness_.begin<float>(), h_nearness_.end<float>());
     h_nearness_maxval_ = *std::max_element(h_nearness_array.begin(), h_nearness_array.end());
 
-// Compute the Fourier Coefficients
+    // Compute the Fourier Coefficients
     cv::Mat h_cos_gamma_mat(h_num_fourier_terms_ + 1, total_h_scan_points_, CV_32FC1, h_cos_gamma_arr);
     cv::Mat h_sin_gamma_mat(h_num_fourier_terms_ + 1, total_h_scan_points_, CV_32FC1, h_sin_gamma_arr);
 
-//perform fourier projections
+    //perform fourier projections
     for (int i = 0; i < h_num_fourier_terms_ + 1; i++) {
         for (int j = 0; j < total_h_scan_points_; j++) {
             h_cos_gamma_arr[i][j] = cos(i * h_gamma_vector_[j]);
@@ -383,11 +380,10 @@ for (int i = 3*total_h_scan_points_/4; i < total_h_scan_points_; i++){
         h_fourier_coefs_msg.b = h_b_vector;
 
         pub_h_fourier_coefficients_.publish(h_fourier_coefs_msg);
-} 
-// End of computeHorizFourierCoeffs******************************************
 
-// Generate WF control commands*******************************************        
-{
+	// End of computeHorizFourierCoeffs******************************************
+
+	// Generate WF control commands*******************************************        
     h_wf_r_cmd_ = r_k_hb_1_*h_b_[1] + r_k_hb_2_*h_b_[2];
     
     // Saturate the wide field yaw rate command
@@ -397,22 +393,21 @@ for (int i = 3*total_h_scan_points_/4; i < total_h_scan_points_; i++){
         h_wf_r_cmd_ = r_max_;
     }
 
-}
-// End Generate control commands********************************************   
+    // End Generate control commands********************************************   
 
 
-// when boundary_stop is set to true, set enable_control to false 
+    // when boundary_stop is set to true, set enable_control to false 
 
-/*        if(boundary_stop){
+        if(boundary_stop){
             enable_control = false;
             servo_release = true;
 
-}
-*/
-//End safety boundary/end boundary
+	}
+
+    //End safety boundary/end boundary
 
 
-// If statement for enable control ******************************
+    // If statement for enable control ******************************
        if(enable_control){
            // Publish the real control commands with rosserial to arduino
 
@@ -426,7 +421,7 @@ for (int i = 3*total_h_scan_points_/4; i < total_h_scan_points_; i++){
                 pub_control_commands_.publish(control_command_);
  
 
-}
+	}
 // Else for zeros to control command ****************************
         
         else if(enable_reverse){
@@ -440,7 +435,7 @@ for (int i = 3*total_h_scan_points_/4; i < total_h_scan_points_; i++){
 
  //Publishing to arduino
                 pub_control_commands_.publish(control_command_);
-}
+	}
         
 
         else {
@@ -463,11 +458,11 @@ for (int i = 3*total_h_scan_points_/4; i < total_h_scan_points_; i++){
  //check callbacks once
       //  ros::spinOnce();
 
+*/
 
-
-    }
-ros::spinOnce();
-}
+    } // End of if(have_scan)
+  ros::spinOnce();
+} // end of while()
 
 
    return 0;
