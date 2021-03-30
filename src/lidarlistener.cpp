@@ -56,8 +56,8 @@ geometry_msgs::TwistStamped control_command_; //setting up control command msg
 float h_dg_; //
 int total_h_scan_points_ = 360; //total number of points being sampled currently
 double h_sensor_max_dist_ = 12; //12 M
-double h_sensor_min_dist_ = 0.15; //15 cm 
-double h_scan_limit_ = 3.14; 
+double h_sensor_min_dist_ = 0.15; //15 cm
+double h_scan_limit_ = 3.14;
 float h_nearness_maxval_ ; // =?
 vector<float> h_gamma_vector_;
 bool enable_control;  // set up control (on = true, off = false)
@@ -89,11 +89,11 @@ vector<float> box_index_;
 float num_indices_;
 
 //controller gains
-    double r_k_hb_1_ = 2.0; //to start with for now
-    double r_k_hb_2_ = 2.0; // =? //to start with for now
-    double r_max_ = 5;  //maximum turn value, determined through testing
-    double u_cmd_ = 60; //forward speed command, determine during testing
-    double rev_u_cmd_ = -u_cmd_;  //reverse speed command
+double r_k_hb_1_ = 2.0; //to start with for now
+double r_k_hb_2_ = 2.0; // =? //to start with for now
+double r_max_ = 5;  //maximum turn value, determined through testing
+double u_cmd_ = 60; //forward speed command, determine during testing
+double rev_u_cmd_ = -u_cmd_;  //reverse speed command
 
 
 //Callbacks*****************************************************
@@ -217,7 +217,7 @@ void checkSafetyBox(std::vector<float> scan_ranges_reformatted){
     if(right_side_flag && left_side_flag){
       boundary_stop = true;
     }
-} 
+}
 */
 // end safetybox *********************************************************
 
@@ -227,129 +227,122 @@ void checkSafetyBox(std::vector<float> scan_ranges_reformatted){
 int main(int argc, char **argv)
 {
 // initialize ros
-    ros::init(argc, argv, "lidarlistener");
-    ros::NodeHandle n;
+  ros::init(argc, argv, "lidarlistener");
+  ros::NodeHandle n;
 
 //Subscribers Setup**********************************************
 //ros subscribers to laserscan
-    ros::Subscriber sub_laserscan = n.subscribe("/scan", 1000, scanCallback);
-//ros subscriber to enable control 
-    ros::Subscriber sub_enable_control = n.subscribe("/enable_controls", 1, enableControlCallback);
-    enable_control = false;
+  ros::Subscriber sub_laserscan = n.subscribe("/scan", 1000, scanCallback);
+//ros subscriber to enable control
+  ros::Subscriber sub_enable_control = n.subscribe("/enable_controls", 1, enableControlCallback);
+  enable_control = false;
 
 //ros subscriber to enable reverse
-    ros::Subscriber sub_enable_reverse = n.subscribe("/enable_reverse", 1, enableReverseCallback);
-    enable_reverse = false;
+  ros::Subscriber sub_enable_reverse = n.subscribe("/enable_reverse", 1, enableReverseCallback);
+  enable_reverse = false;
 
 //is a subscriber needed for safety box stop, servo release, servo attach ?
 
-    ros::Subscriber sub_boundary_stop = n.subscribe("/boundary_stop", 1, enableBoundaryStopCallback);
-    boundary_stop = false;
+  ros::Subscriber sub_boundary_stop = n.subscribe("/boundary_stop", 1, enableBoundaryStopCallback);
+  boundary_stop = false;
 
 
-    ros::Subscriber sub_servo_release = n.subscribe("/servo_release", 1, enableServoReleaseCallback);
-    servo_release = false;
+  ros::Subscriber sub_servo_release = n.subscribe("/servo_release", 1, enableServoReleaseCallback);
+  servo_release = false;
 
-    ros::Subscriber sub_servo_attach = n.subscribe("/servo_attach", 1, enableServoAttachCallback);
-    servo_attach = false;
+  ros::Subscriber sub_servo_attach = n.subscribe("/servo_attach", 1, enableServoAttachCallback);
+  servo_attach = false;
 
-//any other subscribers needed? (besides arduino rosserial)
-//***************************************************************
+  //any other subscribers needed? (besides arduino rosserial)
+  //***************************************************************
 
-//publishers set up**********************************************
-// changed all "nh_." to "n." , runs now, is this okay?
+  //publishers set up**********************************************
+  // changed all "nh_." to "n." , runs now, is this okay?
   ros::Publisher pub_h_scan_nearness_ = n.advertise<std_msgs::Float32MultiArray>("horiz_nearness", 10);
 
   ros::Publisher pub_h_recon_wf_nearness_ = n.advertise<std_msgs::Float32MultiArray>("horiz_recon_wf_nearness", 10);
 
-  ros::Publisher pub_h_fourier_coefficients_ = n.advertise<nearness_control_msgs::FourierCoefsMsg>("horiz_fourier_coefficients", 10);  
+  ros::Publisher pub_h_fourier_coefficients_ = n.advertise<nearness_control_msgs::FourierCoefsMsg>("horiz_fourier_coefficients", 10);
 
-ros::Publisher pub_control_commands_stamped_ = n.advertise<geometry_msgs::TwistStamped>("control_commands_stamped", 10); 
+  ros::Publisher pub_control_commands_stamped_ = n.advertise<geometry_msgs::TwistStamped>("control_commands_stamped", 10);
 
- ros::Publisher pub_control_commands_ = n.advertise<geometry_msgs::TwistStamped>("/control_commands", 10);
-
-
-// publishers for servo release and reattach
- ros::Publisher pub_servo_release_ = n.advertise<geometry_msgs::Twist>("servo_release_cmd", 10);
-
- ros::Publisher pub_servo_attach_ = n.advertise<geometry_msgs::Twist>("servo_attach_cmd", 10);
-//***************************************************************
-
-//call generate safety box function
-//generateSafetyBox();
+  ros::Publisher pub_control_commands_ = n.advertise<geometry_msgs::TwistStamped>("/control_commands", 10);
 
 
-// While loop to start converting/calculating and pushing control commands
+  // publishers for servo release and reattach
+  ros::Publisher pub_servo_release_ = n.advertise<geometry_msgs::Twist>("servo_release_cmd", 10);
 
-while(ros::ok()){
-//if have scan
-  //ROS_INFO_THROTTLE(1.0,"have_scan: %d", have_scan);
-  if (have_scan) {
-  //manual TDR wire re-attachment to servo 
+  ros::Publisher pub_servo_attach_ = n.advertise<geometry_msgs::Twist>("servo_attach_cmd", 10);
+  //***************************************************************
 
+  //call generate safety box function
+  //generateSafetyBox();
 
+  // Generate the horizontal gamma vector  also replaced num_h_scan_points_ with total_h_scan_points
+  for(int i=0; i<total_h_scan_points_; i++){
+      h_gamma_vector_.push_back((float(i) /float(total_h_scan_points_))*(2*h_scan_limit_) - h_scan_limit_);
+  }
+  h_dg_ = (2.0*h_scan_limit_)/total_h_scan_points_; //degree increment
 
-// Generate the horizontal gamma vector  also replaced num_h_scan_points_ with total_h_scan_points
+  // While loop to start converting/calculating and pushing control commands
 
-    for(int i=0; i<total_h_scan_points_; i++){
-        h_gamma_vector_.push_back((float(i) /float(total_h_scan_points_))*(2*h_scan_limit_) - h_scan_limit_);
-    }
-    h_dg_ = (2.0*h_scan_limit_)/total_h_scan_points_; //degree increment
+  while(ros::ok()){
 
+    //ROS_INFO_THROTTLE(1.0,"have_scan: %d", have_scan);
+    if (have_scan) {
+    //manual TDR wire re-attachment to servo
 
-  // Convert incoming scan to cv matrix and reformat**************************
-  vector<float> h_depth_vector = scan_ranges; 
-  vector<float> h_depth_vector_noinfs = h_depth_vector;
-  //ROS_INFO(": [%f %f %f %f %f %f %f]", h_depth_vector);
+    // Convert incoming scan to cv matrix and reformat**************************
+    vector<float> h_depth_vector = scan_ranges;
+    vector<float> h_depth_vector_noinfs = h_depth_vector;
+    //ROS_INFO(": [%f %f %f %f %f %f %f]", h_depth_vector);
     int length = h_depth_vector.size();
     // handle infs due to sensor max distance (find total scan points)
     for(int i = 0; i<total_h_scan_points_; i++){
-        if(isinf(h_depth_vector[i])){
-            if(i == 0){
-                if(isinf(h_depth_vector[i+1])){
-                    h_depth_vector_noinfs[i] = h_sensor_max_dist_;
-                } else {
-                    h_depth_vector_noinfs[i] = h_depth_vector[i+1];
-                }
-            } else if(i == total_h_scan_points_){
-                if(isinf(h_depth_vector[i-1])){
-                    h_depth_vector_noinfs[i] = h_sensor_max_dist_;
-                } else {
-                    h_depth_vector_noinfs[i] = h_depth_vector[i-1];
-                }
-            } else {
-                if(isinf(h_depth_vector[i-1]) && isinf(h_depth_vector[i+1])){
-                    h_depth_vector_noinfs[i] = h_sensor_max_dist_;
-                } else {
-                    h_depth_vector_noinfs[i] = (h_depth_vector[i-1] + h_depth_vector[i+1])/2.0;
-                }
-            }
+      if(isinf(h_depth_vector[i])){
+        if(i == 0){
+          if(isinf(h_depth_vector[i+1])){
+              h_depth_vector_noinfs[i] = h_sensor_max_dist_;
+          } else {
+              h_depth_vector_noinfs[i] = h_depth_vector[i+1];
+          }
+        } else if(i == total_h_scan_points_){
+          if(isinf(h_depth_vector[i-1])){
+              h_depth_vector_noinfs[i] = h_sensor_max_dist_;
+          } else {
+              h_depth_vector_noinfs[i] = h_depth_vector[i-1];
+          }
+        } else {
+          if(isinf(h_depth_vector[i-1]) && isinf(h_depth_vector[i+1])){
+              h_depth_vector_noinfs[i] = h_sensor_max_dist_;
+          } else {
+              h_depth_vector_noinfs[i] = (h_depth_vector[i-1] + h_depth_vector[i+1])/2.0;
+          }
         }
+      }
     }
     h_depth_vector = h_depth_vector_noinfs;
 
-    
-
-   // reformat scan
+    // reformat scan
+    h_depth_vector_reformat.clear();
     for (int i = 3*total_h_scan_points_/4; i < total_h_scan_points_; i++){
-          h_depth_vector_reformat.push_back(h_depth_vector[i]);
+      h_depth_vector_reformat.push_back(h_depth_vector[i]);
+    }
+    for (int i = 0; i < 3*total_h_scan_points_/4; i++){
+      h_depth_vector_reformat.push_back(h_depth_vector[i]);
+    } //now reformatted depth vector goes CW from due left with no inf depths
 
-        }
-        for (int i = 0; i < 3*total_h_scan_points_/4; i++){
-          h_depth_vector_reformat.push_back(h_depth_vector[i]);
-        } //now reformatted depth vector goes CW from due left with no inf depths
-          
 
-   //call function for safety boundary check
-   //checkSafetyBox(h_depth_vector_reformat); //is this the right input arguement
+    //call function for safety boundary check
+    //checkSafetyBox(h_depth_vector_reformat); //is this the right input arguement
 
-   // Publish the reformatted scan
+    // Publish the reformatted scan
 
-   // Last, convert to cvmat and saturate 
+    // Last, convert to cvmat and saturate
 
     h_depth_cvmat_ = cv::Mat(1,total_h_scan_points_, CV_32FC1);
 
-    std::memcpy(h_depth_cvmat_.data, h_depth_vector.data(),  h_depth_vector.size()*sizeof(float)); // replace with h_depth_vector_trimmed if we trim
+    std::memcpy(h_depth_cvmat_.data, h_depth_vector_reformat.data(),  h_depth_vector_reformat.size()*sizeof(float)); // replace with h_depth_vector_trimmed if we trim
     h_depth_cvmat_.setTo(h_sensor_min_dist_, h_depth_cvmat_ < h_sensor_min_dist_);
     h_depth_cvmat_.setTo(h_sensor_max_dist_, h_depth_cvmat_ > h_sensor_max_dist_);
 
@@ -360,7 +353,7 @@ while(ros::ok()){
     //computeHorizFourierCoeffs();
     float h_cos_gamma_arr[h_num_fourier_terms_ + 1][total_h_scan_points_];
     float h_sin_gamma_arr[h_num_fourier_terms_ + 1][total_h_scan_points_];
-   // ROS_INFO_THROTTLE(1.0,"h_cos: %d", h_cos_gamma_arr);
+    // ROS_INFO_THROTTLE(1.0,"h_cos: %d", h_cos_gamma_arr);
     //ROS_INFO_THROTTLE(1.0,"h_sin: %d", h_sin_gamma_arr);
 
     // Compute horizontal nearness
@@ -374,46 +367,42 @@ while(ros::ok()){
     // Compute the Fourier Coefficients
     cv::Mat h_cos_gamma_mat(h_num_fourier_terms_ + 1, total_h_scan_points_, CV_32FC1, h_cos_gamma_arr);
     cv::Mat h_sin_gamma_mat(h_num_fourier_terms_ + 1, total_h_scan_points_, CV_32FC1, h_sin_gamma_arr);
- 
+
     int len = h_gamma_vector_.size();
-   // ROS_INFO_THROTTLE(1.0,"gamma: %d", len);
+    // ROS_INFO_THROTTLE(1.0,"gamma: %d", len);
 
-    //perform fourier projections
-    for (int i = 0; i < h_num_fourier_terms_ + 1; i++) {
-        //ROS_INFO_THROTTLE(1.0,"h_num: %d",h_num_fourier_terms_ + 1);
-        for (int j = 0; j < total_h_scan_points_; j++) {
-            //ROS_INFO("Test");
-            h_cos_gamma_arr[i][j] = cos(i * h_gamma_vector_[j]);
-            //ROS_INFO("Test1");
-            h_sin_gamma_arr[i][j] = sin(i * h_gamma_vector_[j]);
-        }
-        h_a_[i] = h_nearness_.dot(h_cos_gamma_mat.row(i)) * h_dg_ / M_PI;
-        h_b_[i] = h_nearness_.dot(h_sin_gamma_mat.row(i)) * h_dg_ / M_PI;
-    }
-   
+      //perform fourier projections
+      for (int i = 0; i < h_num_fourier_terms_ + 1; i++) {
+          //ROS_INFO_THROTTLE(1.0,"h_num: %d",h_num_fourier_terms_ + 1);
+          for (int j = 0; j < total_h_scan_points_; j++) {
+              //ROS_INFO("Test");
+              h_cos_gamma_arr[i][j] = cos(i * h_gamma_vector_[j]);
+              //ROS_INFO("Test1");
+              h_sin_gamma_arr[i][j] = sin(i * h_gamma_vector_[j]);
+          }
+          h_a_[i] = h_nearness_.dot(h_cos_gamma_mat.row(i)) * h_dg_ / M_PI;
+          h_b_[i] = h_nearness_.dot(h_sin_gamma_mat.row(i)) * h_dg_ / M_PI;
+      }
 
+    // Publish horizontal WFI Fourier coefficients
+    // Convert array to vector
+    std::vector<float> h_a_vector(h_a_, h_a_ + sizeof h_a_ / sizeof h_a_[0]);
+    std::vector<float> h_b_vector(h_b_, h_b_ + sizeof h_b_ / sizeof h_b_[0]);
 
-        // Publish horizontal WFI Fourier coefficients
-        // Convert array to vector
-        std::vector<float> h_a_vector(h_a_, h_a_ + sizeof h_a_ / sizeof h_a_[0]);
-        std::vector<float> h_b_vector(h_b_, h_b_ + sizeof h_b_ / sizeof h_b_[0]);
+    nearness_control_msgs::FourierCoefsMsg h_fourier_coefs_msg;
+    //ROS_INFO("Test");
+    h_fourier_coefs_msg.header.stamp = ros::Time::now();
+    h_fourier_coefs_msg.a = h_a_vector;
+    h_fourier_coefs_msg.b = h_b_vector;
+    //ROS_INFO("Test1");
+    pub_h_fourier_coefficients_.publish(h_fourier_coefs_msg);
 
-        nearness_control_msgs::FourierCoefsMsg h_fourier_coefs_msg;
-        //ROS_INFO("Test");
-        h_fourier_coefs_msg.header.stamp = ros::Time::now();
-        h_fourier_coefs_msg.a = h_a_vector;
-        h_fourier_coefs_msg.b = h_b_vector;
-        //ROS_INFO("Test1");
-        pub_h_fourier_coefficients_.publish(h_fourier_coefs_msg);
+  	// End of computeHorizFourierCoeffs******************************************
 
-	// End of computeHorizFourierCoeffs******************************************
+        //ROS_INFO("Test2");
 
-      //ROS_INFO("Test2");
-
-	// Generate WF control commands*******************************************        
+  	// Generate WF control commands*******************************************
     h_wf_r_cmd_ = r_k_hb_1_*h_b_[1] + r_k_hb_2_*h_b_[2];
-    
-     //ROS_INFO("Test1");
 
     // Saturate the wide field yaw rate command
     if(h_wf_r_cmd_ < -r_max_) {
@@ -422,78 +411,67 @@ while(ros::ok()){
         h_wf_r_cmd_ = r_max_;
     }
 
-    // End Generate control commands********************************************   
+    // End Generate control commands********************************************
       //ROS_INFO("Test1");
 
 
-    // when boundary_stop is set to true, set enable_control to false 
+      // when boundary_stop is set to true, set enable_control to false
 
-        if(boundary_stop){
-            enable_control = false;
-            servo_release = true;
+    if(boundary_stop){
+        enable_control = false;
+        servo_release = true;
 
-	}
+  	}
 
-    //End safety boundary/end boundary
-
-
-    // If statement for enable control ******************************
-       if(enable_control){
-           // Publish the real control commands with rosserial to arduino
-
-                //real control command
-                control_command_.twist.linear.x = u_cmd_;
-                control_command_.twist.linear.y = 0;
-                control_command_.twist.linear.z = 0;
-                control_command_.twist.angular.z = h_wf_r_cmd_;
-                 ros::spinOnce();
-                //Publishing to arduino
-                pub_control_commands_.publish(control_command_);
- 
-                
-	}
-// Else for zeros to control command ****************************
-        
-        else if(enable_reverse){
-
-    double rev_h_wf_r_cmd_ = -h_wf_r_cmd_;
-
-                control_command_.twist.linear.x = u_cmd_;
-                control_command_.twist.linear.y = 0;
-                control_command_.twist.linear.z = 0;
-                control_command_.twist.angular.z = h_wf_r_cmd_;
-                ros::spinOnce();
- //Publishing to arduino
-                pub_control_commands_.publish(control_command_);
-	}
-        
-
-        else {
-           // Publish zeros with rosserial
-           //set commands to zero
-                control_command_.twist.linear.x = 0;
-                control_command_.twist.linear.y = 0;
-                control_command_.twist.linear.z = 0;
-                control_command_.twist.angular.z = 0;
-                ros::spinOnce();
-          // Publish to arduino
-                pub_control_commands_.publish(control_command_);
-
-           // Publish to arduino
+      //End safety boundary/end boundary
 
 
-                
-       }
+      // If statement for enable control ******************************
+     if(enable_control){
+        // Publish the real control commands with rosserial to arduino
+
+        //real control command
+        control_command_.twist.linear.x = u_cmd_;
+        control_command_.twist.linear.y = 0;
+        control_command_.twist.linear.z = 0;
+        control_command_.twist.angular.z = h_wf_r_cmd_;
+         ros::spinOnce();
+        //Publishing to arduino
+        pub_control_commands_.publish(control_command_);
+  	}
+  // Else for zeros to control command ****************************
+    else if(enable_reverse){
+      double rev_h_wf_r_cmd_ = -h_wf_r_cmd_;
+      control_command_.twist.linear.x = u_cmd_;
+      control_command_.twist.linear.y = 0;
+      control_command_.twist.linear.z = 0;
+      control_command_.twist.angular.z = h_wf_r_cmd_;
+      ros::spinOnce();
+      //Publishing to arduino
+      pub_control_commands_.publish(control_command_);
+  	} else {
+      // Publish zeros with rosserial
+      //set commands to zero
+      control_command_.twist.linear.x = 0;
+      control_command_.twist.linear.y = 0;
+      control_command_.twist.linear.z = 0;
+      control_command_.twist.angular.z = 0;
+      ros::spinOnce();
+      // Publish to arduino
+      pub_control_commands_.publish(control_command_);
+
+      // Publish to arduino
+    }
 
 
- //check callbacks once
-      //  ros::spinOnce();
+   //check callbacks once
+        //  ros::spinOnce();
 
 
 
-    } // End of if(have_scan)
-  ros::spinOnce();
-} // end of while()
+    h} // End of if(have_scan)
+    ros::spinOnce();
+  } // end of while()
 
  ROS_INFO("Test");
    return 0;
