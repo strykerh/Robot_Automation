@@ -1,7 +1,9 @@
 <launch>
+
   <include file="$(find rplidar_ros)/launch/rplidar.launch"/> 
 
   <node pkg="rosserial_python" name="rosserial_node" type="serial_node.py" args="/dev/ttyACM0" output="screen"/>
+      
   <node pkg="robot_auto" name="lidar_listener_node" type="lidarlistener" output="screen" respawn="true"/>
 
 </launch>
