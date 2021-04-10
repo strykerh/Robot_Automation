@@ -1,10 +1,10 @@
-
 #include <ros.h>
 #if ARDUINO >= 100
 #include "Arduino.h"
 #else
 #include "WProgram.h"
 #endif
+#include <HardwareSerial.h>
 #include <SoftwareSerial.h>
 #include "RoboClaw.h"
 
@@ -20,30 +20,28 @@ int pos1 = 0;
 
 bool enableControl;
 bool enableReverse;
+double u_cmd = 0.0;
+double h_wf_r_cmd = 0.0;
 
-float h_wf_r_cmd;
-float u_cmd;
-
-
-SoftwareSerial serial(10,11);  
-RoboClaw roboclaw(&serial,10000);
+SoftwareSerial mySerial(10,11);
+RoboClaw roboclaw(&mySerial,10000);
 
 #define address 0x80
 
 ros::NodeHandle n;
 
 void messageCb(geometry_msgs::Twist& msg){
- u_cmd == msg.linear.x;
- h_wf_r_cmd == msg.angular.z;
- //digitalWrite(13, HIGH-digitalRead(13));  //toggle led  
+ u_cmd = msg.linear.x;
+ h_wf_r_cmd = msg.angular.z;
+  
   
 }
 void enableControlCb(const std_msgs::Bool& msg){
- enableControl == msg.data;
+ enableControl = msg.data;
  
 }
 void enableReverseCb(const std_msgs::Bool& msg){
- enableReverse == msg.data;
+ enableReverse = msg.data;
  
 }
 
@@ -62,66 +60,86 @@ float sat(float num, float min_val, float max_val){
 }
 
 
+
+
 void setup() {
-  //myservo.attach(9);
-  Serial.begin(9600);      // Set your Serial Monitor is set at 250000
-  
+  Serial.begin(57600);  // Set your Serial Monitor is set at 250000
+  roboclaw.begin(9600);
   n.initNode();
   n.subscribe(sub);
-  
-  n.initNode();
   n.subscribe(enable_Control);
-  
-  n.initNode();
   n.subscribe(enable_Reverse);
 
   
 }
 void loop() {
-
     
-    float sat_u_cmd = sat(0,120,u_cmd);
-    float sat_h_wf_r_cmd = sat(0,10,h_wf_r_cmd);
+    float sat_u_cmd = sat(u_cmd,0,1.0);
+    float sat_h_wf_r_cmd = sat(h_wf_r_cmd,-1,1);
     
-    float val1 = sat_u_cmd - sat_h_wf_r_cmd;
-    float val2 = -sat_u_cmd + sat_h_wf_r_cmd;
+    float val1 = sat_u_cmd + sat_h_wf_r_cmd;
+    float val2 = sat_u_cmd - sat_h_wf_r_cmd;
+    //float val1 = sat_u_cmd;
+    //float val2 = sat_u_cmd;
+    
+    int right_speed = int(val1*128);
+    int left_speed = int(val2*128);
 
 
+     Serial.print("loop");
     
-        if(enableControl == true)
-            {
-                
-             //Serial.print("Forward");
-             roboclaw.BackwardM1(address, val1); 
-             roboclaw.BackwardM2(address, val2); 
+        if(enableControl == true){
+
+             if (val1 < 0){
+              val1 = 0;
+              right_speed = int(val1*128);
          
+             roboclaw.BackwardM1(address, right_speed); 
+             roboclaw.BackwardM2(address, left_speed);
+             }
+             
+             else if (val2 < 0){
+              val2 = 0;
+              left_speed = int(val2*128);
+
+             roboclaw.BackwardM1(address, right_speed); 
+             roboclaw.BackwardM2(address, left_speed);
+             }
+             else 
+             roboclaw.BackwardM1(address, right_speed); 
+             roboclaw.BackwardM2(address, left_speed);
+
+             
+//      myservo.attach(9);
+//      for (pos = 90; pos >= 1; pos -= 1) { // goes from 0 degrees to 180 degrees
+//    // in steps of 1 degree
+//     myservo.write(pos);              // tell servo to go to position in variable 'pos'
+//      delay(20);
+//      }  
+       //myservo.detach();
             
-       n.spinOnce();
+      
            }
           
       
   else if (enableReverse == true )
     {
-      //Serial.print("Backward");
-      roboclaw.ForwardM1(address, 40);
-      roboclaw.ForwardM2(address,40);
+      roboclaw.ForwardM1(address, 30);
+      roboclaw.ForwardM2(address,30);
       myservo.detach();
-    // n.spinOnce();
-     //delay(1);
     }
   
   else
    {
-    //Serial.print("Stop");
     roboclaw.ForwardM1(address, 0); 
     roboclaw.ForwardM2(address, 0);
     myservo.detach();
-    n.spinOnce();
     
  }
    
 
-  
+ 
    n.spinOnce();
+   delay(10);
 
 }
